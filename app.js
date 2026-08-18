@@ -228,14 +228,18 @@ function renderMemo(){
  els.memoTargetText.textContent=selectedTarget?"選択中カードの候補除外":"相手カードを選択すると使えます";
  for(let n=0;n<=11;n++){const b=document.createElement("button");b.className="memo-btn"+(memo?.has(n)?" off":"");b.textContent=n;b.disabled=!selectedTarget;b.addEventListener("click",()=>{if(!selectedTarget)return;memo.has(n)?memo.delete(n):memo.add(n);renderMemo();renderNumberPad()});els.memoNumbers.appendChild(b)}
 }
-function scheduleCpuTick(){
- clearTimeout(cpuTimer);if(!gameView||gameView.status!=="playing")return;
- const meIdx=roomView.players.findIndex(p=>p.id===sessionId);
- const coordinator=roomView.players.findIndex(p=>!p.isCpu&&p.connected);
- if(meIdx!==coordinator)return;
+function cpuNeedsAction(){
+ if(!roomView||!gameView||gameView.status!=="playing")return false;
  const activeCpu=roomView.players[gameView.turn]?.isCpu;
  const tossCpu=gameView.mode==="pair"&&gameView.phase==="toss"&&roomView.players[gameView.toss?.from]?.isCpu;
- if(activeCpu||tossCpu)cpuTimer=setTimeout(()=>send({type:"cpu_tick"}),720);
+ return !!(activeCpu||tossCpu);
+}
+function scheduleCpuTick(){
+ clearTimeout(cpuTimer);
+ if(!cpuNeedsAction())return;
+ cpuTimer=setTimeout(()=>{
+  if(cpuNeedsAction())send({type:"cpu_tick",gameId:gameView.gameId,turn:gameView.turn,phase:gameView.phase});
+ },650);
 }
 function showResultIfNeeded(meIdx){
  if(resultShownFor===gameView.gameId)return;resultShownFor=gameView.gameId;
@@ -248,5 +252,11 @@ function renderLog(){els.logList.innerHTML=logs.map(x=>`<div class="log-entry"><
 function toast(text,good){const t=document.createElement("div");t.className="toast"+(good===true?" good":good===false?" bad":"");t.textContent=text;els.toastLayer.appendChild(t);setTimeout(()=>t.remove(),1100)}
 function leaveRoom(){if(!currentRoom)return;send({type:"leave"});returnToTitle(true)}
 function returnToTitle(closeSocket=true){intentionalClose=true;clearTimeout(cpuTimer);if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
+setInterval(()=>{
+ if(socket?.readyState!==WebSocket.OPEN)return;
+ if(!cpuNeedsAction())return;
+ send({type:"cpu_tick",gameId:gameView.gameId,turn:gameView.turn,phase:gameView.phase});
+},1400);
+
 refreshRooms();
 })();

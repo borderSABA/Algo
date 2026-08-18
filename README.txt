@@ -1,13 +1,9 @@
-ALGO ONLINE v0.5 - GitHub Pages
+ALGO ONLINE v0.5.1
 
-Upload every file in this folder.
+CPU turn progression fix.
 
-Lobby:
-- No manual 2P / 3P / 4P selection.
-- Participant count decides the individual game mode automatically.
-- CPU add/remove controls live in player seats.
-- Pair Play toggle appears for 4-player games.
-- Start button launches the automatically selected mode.
+Upload ALL files in this folder to GitHub Pages.
+Also redeploy Cloudflare_Workers because the server CPU dedupe logic changed.
 
 Server:
 https://algo-online.naitoryo7110.workers.dev
