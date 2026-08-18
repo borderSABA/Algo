@@ -1,12 +1,12 @@
-ALGO ONLINE v0.3.1 - GitHub Pages files
+ALGO ONLINE v0.4 - GitHub Pages
 
-Upload these files to the GitHub Pages repository:
-- index.html
-- style.css
-- app.js
-- config.js
+Upload ALL files in this folder.
 
-config.js server:
+v0.4 lobby changes:
+- Shared game settings: no host-only lock.
+- Unified mode cards.
+- CPU add button is displayed inside each empty seat.
+- CPU remove button is displayed inside each CPU seat.
+
+Server:
 https://algo-online.naitoryo7110.workers.dev
-
-Fix: lobby host permission and CPU/mode controls.

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1015">
-  <title>ALGO ONLINE v0.3.1</title>
+  <title>ALGO ONLINE v0.4</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
       <div class="brand-mark">A</div>
       <div class="brand-copy">
         <div class="brand-title">ALGO <span>ONLINE</span></div>
-        <div class="brand-sub">LOGIC NUMBER GAME / v0.3.1</div>
+        <div class="brand-sub">LOGIC NUMBER GAME / v0.4</div>
       </div>
     </div>
     <div class="top-actions">
@@ -48,31 +48,54 @@
     <section class="waiting-card">
       <div class="waiting-top">
         <div><div class="eyebrow">MATCH ROOM</div><h2 id="roomTitle">ROOM 1</h2></div>
-        <div id="hostLabel" class="host-label">HOST</div>
+        <div class="shared-setting-badge">全員が設定可能</div>
       </div>
 
-      <div class="lobby-controls">
-        <div class="control-block">
-          <span>対戦形式</span>
-          <div id="modeButtons" class="mode-buttons">
-            <button data-mode="2">2人戦</button>
-            <button data-mode="3">3人戦</button>
-            <button data-mode="4">4人戦</button>
-            <button data-mode="pair">ペア戦</button>
-          </div>
-        </div>
-        <div class="control-block cpu-control">
-          <span>CPU</span>
+      <section class="game-setting-panel">
+        <div class="setting-title-row">
           <div>
-            <button id="removeCpuBtn" class="small-btn">− CPU</button>
-            <button id="addCpuBtn" class="small-btn accent">＋ CPU</button>
+            <div class="setting-kicker">GAME MODE</div>
+            <strong>対戦形式</strong>
           </div>
+          <span>ゲーム開始前ならいつでも変更できます</span>
         </div>
-      </div>
+        <div id="modeButtons" class="mode-cards">
+          <button class="mode-card" data-mode="2">
+            <span class="mode-icon">2</span>
+            <span class="mode-copy"><b>2人戦</b><small>1 vs 1 ・ 初期4枚</small></span>
+            <span class="mode-check">✓</span>
+          </button>
+          <button class="mode-card" data-mode="3">
+            <span class="mode-icon">3</span>
+            <span class="mode-copy"><b>3人戦</b><small>個人戦 ・ 初期3枚</small></span>
+            <span class="mode-check">✓</span>
+          </button>
+          <button class="mode-card" data-mode="4">
+            <span class="mode-icon">4</span>
+            <span class="mode-copy"><b>4人戦</b><small>個人戦 ・ 初期2枚</small></span>
+            <span class="mode-check">✓</span>
+          </button>
+          <button class="mode-card" data-mode="pair">
+            <span class="mode-icon pair-icon">2v2</span>
+            <span class="mode-copy"><b>ペア戦</b><small>TEAM A vs TEAM B ・ 各6枚</small></span>
+            <span class="mode-check">✓</span>
+          </button>
+        </div>
+      </section>
 
-      <div id="waitingPlayers" class="waiting-players"></div>
+      <section class="seat-setting-panel">
+        <div class="setting-title-row">
+          <div>
+            <div class="setting-kicker">PLAYERS</div>
+            <strong>参加プレイヤー</strong>
+          </div>
+          <span>空席にはCPUを直接追加できます</span>
+        </div>
+        <div id="waitingPlayers" class="waiting-players"></div>
+      </section>
+
       <div id="waitingText" class="waiting-text">参加者を待っています。</div>
-      <button id="readyBtn" class="primary-btn">READY</button>
+      <button id="readyBtn" class="primary-btn lobby-ready-btn">READY</button>
     </section>
   </main>
 

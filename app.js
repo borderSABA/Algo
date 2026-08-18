@@ -12,8 +12,8 @@ let selectedTarget=null,logs=[],memos={},resultShownFor=null,reconnectTimer=null
 
 const els={
  titleScreen:$("titleScreen"),roomScreen:$("roomScreen"),gameScreen:$("gameScreen"),nameInput:$("nameInput"),roomGrid:$("roomGrid"),serverState:$("serverState"),
- roomTitle:$("roomTitle"),hostLabel:$("hostLabel"),waitingPlayers:$("waitingPlayers"),waitingText:$("waitingText"),readyBtn:$("readyBtn"),
- addCpuBtn:$("addCpuBtn"),removeCpuBtn:$("removeCpuBtn"),modeButtons:$("modeButtons"),
+ roomTitle:$("roomTitle"),waitingPlayers:$("waitingPlayers"),waitingText:$("waitingText"),readyBtn:$("readyBtn"),
+ modeButtons:$("modeButtons"),
  gameRoomLabel:$("gameRoomLabel"),modeChip:$("modeChip"),turnText:$("turnText"),deckCount:$("deckCount"),deckLabel:$("deckLabel"),
  othersGrid:$("othersGrid"),selfName:$("selfName"),selfTeam:$("selfTeam"),selfCards:$("selfCards"),selfOpen:$("selfOpen"),selfTotal:$("selfTotal"),
  actionTitle:$("actionTitle"),actionHelp:$("actionHelp"),guessPanel:$("guessPanel"),targetLabel:$("targetLabel"),numberPad:$("numberPad"),
@@ -36,8 +36,6 @@ $("logBtn").addEventListener("click",()=>{els.logDrawer.classList.add("open");el
 $("closeLogBtn").addEventListener("click",closeLog);els.drawerShade.addEventListener("click",closeLog);
 $("leaveBtn").addEventListener("click",leaveRoom);
 els.readyBtn.addEventListener("click",()=>send({type:"ready"}));
-els.addCpuBtn.addEventListener("click",()=>send({type:"add_cpu"}));
-els.removeCpuBtn.addEventListener("click",()=>send({type:"remove_cpu"}));
 els.modeButtons.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>send({type:"set_mode",mode:b.dataset.mode})));
 $("continueBtn").addEventListener("click",()=>send({type:"continue"}));
 $("stayBtn").addEventListener("click",()=>send({type:"stay"}));
@@ -95,19 +93,42 @@ function renderState(){
  setScreen("game");renderGame(me);scheduleCpuTick();
 }
 function renderLobby(me){
- const fallbackHostId=roomView.hostId||roomView.players.find(p=>!p.isCpu&&p.connected)?.id||roomView.players.find(p=>!p.isCpu)?.id||null;
- const isHost=roomView.youIsHost===true||fallbackHostId===sessionId;
- els.roomTitle.textContent=`ROOM ${roomView.room}`;els.hostLabel.textContent=isHost?"HOST":"GUEST";
+ els.roomTitle.textContent=`ROOM ${roomView.room}`;
  const req=roomView.requiredPlayers||2;
- els.modeButtons.querySelectorAll("button").forEach(b=>{b.classList.toggle("active",b.dataset.mode===roomView.mode);b.disabled=!isHost});
- els.addCpuBtn.disabled=!isHost||roomView.players.length>=req;els.removeCpuBtn.disabled=!isHost||!roomView.players.some(p=>p.isCpu);
- els.waitingPlayers.innerHTML=Array.from({length:req},(_,i)=>{
+ els.modeButtons.querySelectorAll("button").forEach(b=>{
+  b.classList.toggle("active",b.dataset.mode===roomView.mode);
+  b.disabled=false;
+ });
+ els.waitingPlayers.innerHTML="";
+ for(let i=0;i<req;i++){
   const p=roomView.players[i],team=roomView.mode==="pair"?teamOf(i):null;
-  return `<div class="waiting-seat ${p?.ready||p?.isCpu?"ready":""} ${p?.isCpu?"cpu":""}"><div class="seat-no">PLAYER ${i+1}${team?` / <span class="team${team}">TEAM ${team}</span>`:""}</div><strong>${p?esc(p.name):"募集中"}</strong><div class="seat-meta">${p?(p.isCpu?"CPU":p.ready?"READY":"WAIT"):"EMPTY"}${p&&!p.isCpu&&!p.connected?" / OFFLINE":""}</div></div>`;
- }).join("");
+  const seat=document.createElement("div");
+  seat.className=`waiting-seat ${p?.ready||p?.isCpu?"ready":""} ${p?.isCpu?"cpu":""} ${p?"":"empty"}`;
+  const teamText=team?` / <span class="team${team}">TEAM ${team}</span>`:"";
+  if(p){
+   seat.innerHTML=`<div><div class="seat-no">PLAYER ${i+1}${teamText}</div><strong>${esc(p.name)}</strong><div class="seat-meta">${p.isCpu?"CPU":p.ready?"READY":"WAIT"}${!p.isCpu&&!p.connected?" / OFFLINE":""}</div></div>`;
+   if(p.isCpu){
+    const rm=document.createElement("button");
+    rm.className="seat-action-btn remove";
+    rm.textContent="CPUを削除";
+    rm.addEventListener("click",()=>send({type:"remove_cpu",cpuId:p.id}));
+    seat.appendChild(rm);
+   }
+  }else{
+   seat.innerHTML=`<div><div class="seat-no">PLAYER ${i+1}${teamText}</div><strong>空席</strong><div class="seat-meta">HUMAN / CPU</div></div>`;
+   const add=document.createElement("button");
+   add.className="seat-action-btn add";
+   add.textContent="＋ CPUを追加";
+   add.addEventListener("click",()=>send({type:"add_cpu"}));
+   seat.appendChild(add);
+  }
+  els.waitingPlayers.appendChild(seat);
+ }
  const full=roomView.players.length===req;
- els.waitingText.textContent=full?"全員が揃いました。人間プレイヤーがREADYで開始します。":`あと ${req-roomView.players.length} 席です。ホストはCPUを追加できます。`;
- els.readyBtn.disabled=!full;els.readyBtn.textContent=me.ready?"READY 済み":"READY";renderLog();
+ els.waitingText.textContent=full?"全員が揃いました。人間プレイヤー全員がREADYになると開始します。":`あと ${req-roomView.players.length} 席です。空席からCPUを追加できます。`;
+ els.readyBtn.disabled=!full;
+ els.readyBtn.textContent=me.ready?"READY 解除":"READY";
+ renderLog();
 }
 function renderGame(me){
  const meIdx=roomView.players.findIndex(p=>p.id===sessionId),pair=gameView.mode==="pair";
