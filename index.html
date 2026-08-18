@@ -2,175 +2,188 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1015">
-  <title>ALGO ONLINE v0.2</title>
+  <title>ALGO ONLINE v0.3</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">A</div>
-        <div class="brand-copy">
-          <div class="brand-title">ALGO <span>ONLINE</span></div>
-          <div class="brand-sub">LOGIC NUMBER GAME / v0.2</div>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <div class="brand-copy">
+        <div class="brand-title">ALGO <span>ONLINE</span></div>
+        <div class="brand-sub">LOGIC NUMBER GAME / v0.3</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="rulesBtn" class="top-btn">ルール</button>
+      <button id="logBtn" class="top-btn game-only hidden">ログ</button>
+      <button id="leaveBtn" class="top-btn danger game-only hidden">退出</button>
+    </div>
+  </header>
+
+  <main id="titleScreen" class="screen title-screen">
+    <section class="hero-panel">
+      <div class="eyebrow">ONLINE LOGIC BATTLE</div>
+      <h1>伏せられた数字を<br><em>論理で暴く。</em></h1>
+      <p>2〜4人の個人戦、CPU混在、4人ペア戦に対応。</p>
+      <label class="field-label" for="nameInput">プレイヤー名</label>
+      <input id="nameInput" class="name-input" maxlength="12" placeholder="名前を入力">
+      <div id="serverState" class="server-state"><span class="state-dot"></span><span>サーバー確認中...</span></div>
+    </section>
+
+    <section class="rooms-panel">
+      <div class="section-head">
+        <div><div class="eyebrow">ROOM SELECT</div><h2>部屋を選択</h2></div>
+        <button id="refreshRoomsBtn" class="small-btn">更新</button>
+      </div>
+      <div id="roomGrid" class="room-grid"></div>
+      <p class="rooms-note">固定4部屋 / 入室後に対戦形式とCPUを設定できます。</p>
+    </section>
+  </main>
+
+  <main id="roomScreen" class="screen room-screen hidden">
+    <section class="waiting-card">
+      <div class="waiting-top">
+        <div><div class="eyebrow">MATCH ROOM</div><h2 id="roomTitle">ROOM 1</h2></div>
+        <div id="hostLabel" class="host-label">HOST</div>
+      </div>
+
+      <div class="lobby-controls">
+        <div class="control-block">
+          <span>対戦形式</span>
+          <div id="modeButtons" class="mode-buttons">
+            <button data-mode="2">2人戦</button>
+            <button data-mode="3">3人戦</button>
+            <button data-mode="4">4人戦</button>
+            <button data-mode="pair">ペア戦</button>
+          </div>
         </div>
-      </div>
-      <div class="top-actions">
-        <button id="rulesBtn" class="top-btn">ルール</button>
-        <button id="logBtn" class="top-btn game-only hidden">ログ</button>
-        <button id="leaveBtn" class="top-btn danger game-only hidden">退出</button>
-      </div>
-    </header>
-
-    <main id="titleScreen" class="screen title-screen">
-      <section class="hero-panel">
-        <div class="eyebrow">ONLINE LOGIC BATTLE</div>
-        <h1>伏せられた数字を<br><em>論理で暴く。</em></h1>
-        <p>黒・白 0〜11。並び順と公開情報から相手のカードを推理します。</p>
-
-        <label class="field-label" for="nameInput">プレイヤー名</label>
-        <input id="nameInput" class="name-input" maxlength="12" placeholder="名前を入力">
-        <div id="serverState" class="server-state"><span class="state-dot"></span><span>サーバー確認中...</span></div>
-      </section>
-
-      <section class="rooms-panel">
-        <div class="section-head">
+        <div class="control-block cpu-control">
+          <span>CPU</span>
           <div>
-            <div class="eyebrow">ROOM SELECT</div>
-            <h2>部屋を選択</h2>
-          </div>
-          <button id="refreshRoomsBtn" class="small-btn">更新</button>
-        </div>
-        <div id="roomGrid" class="room-grid"></div>
-        <p class="rooms-note">2人用 / 固定4部屋。部屋の初期化はタイトル画面から行えます。</p>
-      </section>
-    </main>
-
-    <main id="roomScreen" class="screen room-screen hidden">
-      <section class="waiting-card">
-        <div class="eyebrow">MATCH ROOM</div>
-        <h2 id="roomTitle">ROOM 1</h2>
-        <div id="waitingPlayers" class="waiting-players"></div>
-        <div id="waitingText" class="waiting-text">対戦相手を待っています。</div>
-        <button id="readyBtn" class="primary-btn" disabled>READY</button>
-      </section>
-    </main>
-
-    <main id="gameScreen" class="game-screen hidden">
-      <section class="game-status">
-        <div class="turn-chip"><span class="turn-dot"></span><span id="turnText">待機中</span></div>
-        <div class="room-chip" id="gameRoomLabel">ROOM 1</div>
-        <div class="deck-chip">山札 <b id="deckCount">0</b></div>
-      </section>
-
-      <section class="board">
-        <div class="player-panel opponent-panel">
-          <div class="player-head">
-            <div>
-              <strong id="opponentName">相手</strong>
-              <span id="opponentConn" class="conn-label">ONLINE</span>
-            </div>
-            <div class="open-meter"><span id="opponentOpen">0</span>/<span id="opponentTotal">4</span> OPEN</div>
-          </div>
-          <div id="opponentCards" class="card-row"></div>
-        </div>
-
-        <div class="center-panel">
-          <div class="deck-block">
-            <div class="deck-card">?</div>
-            <span>DRAW</span>
-          </div>
-
-          <div class="action-box">
-            <div id="actionTitle" class="action-title">ゲーム準備中</div>
-            <div id="actionHelp" class="action-help">両プレイヤーの準備完了を待っています。</div>
-
-            <div id="guessPanel" class="guess-panel hidden">
-              <div id="targetLabel" class="target-label">相手カードを選択</div>
-              <div id="numberPad" class="number-pad"></div>
-            </div>
-
-            <div id="decisionPanel" class="decision-panel hidden">
-              <button id="continueBtn" class="primary-btn">続けてアタック</button>
-              <button id="stayBtn" class="secondary-btn">ステイ</button>
-            </div>
-          </div>
-
-          <div class="draw-block">
-            <span>今回引いたカード</span>
-            <div id="drawCard" class="draw-card empty">—</div>
+            <button id="removeCpuBtn" class="small-btn">− CPU</button>
+            <button id="addCpuBtn" class="small-btn accent">＋ CPU</button>
           </div>
         </div>
-
-        <div class="player-panel self-panel">
-          <div class="player-head">
-            <div>
-              <strong id="selfName">あなた</strong>
-              <span class="conn-label me">YOU</span>
-            </div>
-            <div class="open-meter"><span id="selfOpen">0</span>/<span id="selfTotal">4</span> OPEN</div>
-          </div>
-          <div id="selfCards" class="card-row"></div>
-        </div>
-
-        <div class="memo-panel">
-          <div class="memo-head">
-            <strong>推理メモ</strong>
-            <span id="memoTargetText">相手カードを選択すると使えます</span>
-            <button id="clearMemoBtn" class="small-btn">解除</button>
-          </div>
-          <div id="memoNumbers" class="memo-numbers"></div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <div id="toastLayer" class="toast-layer"></div>
-
-  <div id="rulesModal" class="modal hidden">
-    <div class="modal-card">
-      <div class="modal-head">
-        <div>
-          <div class="eyebrow">HOW TO PLAY</div>
-          <h2>基本ルール</h2>
-        </div>
-        <button class="close-btn" data-close="rulesModal">×</button>
       </div>
-      <div class="rule-grid">
-        <article><b>カード</b><p>黒・白それぞれ0〜11。左から数字の小さい順、同じ数字なら黒→白の順に並びます。</p></article>
-        <article><b>ターン</b><p>山札から1枚引き、相手の伏せカード1枚を選び、数字を宣言します。</p></article>
-        <article><b>正解</b><p>相手のカードがOPEN。さらにアタックするか、ステイして引いたカードを伏せたまま手元へ入れます。</p></article>
-        <article><b>不正解</b><p>今回引いたカードがOPEN状態で自分の列へ入り、相手のターンになります。</p></article>
-        <article><b>勝利</b><p>相手のカードをすべてOPENにしたプレイヤーが勝利です。</p></article>
-        <article><b>オンライン版</b><p>固定4部屋・2人対戦。途中で同じ端末から開き直した場合は同じ席へ再接続します。</p></article>
+
+      <div id="waitingPlayers" class="waiting-players"></div>
+      <div id="waitingText" class="waiting-text">参加者を待っています。</div>
+      <button id="readyBtn" class="primary-btn">READY</button>
+    </section>
+  </main>
+
+  <main id="gameScreen" class="game-screen hidden">
+    <section class="game-status">
+      <div class="turn-chip"><span class="turn-dot"></span><span id="turnText">待機中</span></div>
+      <div id="modeChip" class="mode-chip">2人戦</div>
+      <div class="room-chip" id="gameRoomLabel">ROOM 1</div>
+      <div class="deck-chip">山札 <b id="deckCount">0</b></div>
+    </section>
+
+    <section class="board">
+      <div id="othersGrid" class="others-grid"></div>
+
+      <div class="center-panel">
+        <div class="deck-block">
+          <div class="deck-card">?</div>
+          <span id="deckLabel">DRAW</span>
+        </div>
+
+        <div class="action-box">
+          <div id="actionTitle" class="action-title">ゲーム準備中</div>
+          <div id="actionHelp" class="action-help"></div>
+
+          <div id="tossReveal" class="toss-reveal hidden"></div>
+          <button id="skipTossBtn" class="secondary-btn compact hidden">トスを省略</button>
+
+          <div id="guessPanel" class="guess-panel hidden">
+            <div id="targetLabel" class="target-label">カードを選択</div>
+            <div id="numberPad" class="number-pad"></div>
+          </div>
+
+          <div id="decisionPanel" class="decision-panel hidden">
+            <button id="continueBtn" class="primary-btn">続けてアタック</button>
+            <button id="stayBtn" class="secondary-btn">ステイ</button>
+          </div>
+        </div>
+
+        <div class="draw-block">
+          <span id="drawLabel">今回引いたカード</span>
+          <div id="drawCard" class="draw-card empty">—</div>
+        </div>
       </div>
+
+      <div class="player-panel self-panel">
+        <div class="player-head">
+          <div>
+            <strong id="selfName">あなた</strong>
+            <span id="selfTeam" class="team-badge hidden">TEAM A</span>
+            <span class="conn-label me">YOU</span>
+          </div>
+          <div class="open-meter"><span id="selfOpen">0</span>/<span id="selfTotal">0</span> OPEN</div>
+        </div>
+        <div id="selfCards" class="card-row"></div>
+      </div>
+
+      <div class="memo-panel">
+        <div class="memo-head">
+          <strong>推理メモ</strong>
+          <span id="memoTargetText">相手カードを選択すると使えます</span>
+          <button id="clearMemoBtn" class="small-btn">解除</button>
+        </div>
+        <div id="memoNumbers" class="memo-numbers"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toastLayer" class="toast-layer"></div>
+
+<div id="rulesModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div><div class="eyebrow">HOW TO PLAY</div><h2>ルール</h2></div>
+      <button class="close-btn" data-close="rulesModal">×</button>
+    </div>
+    <div class="rule-grid">
+      <article><b>基本</b><p>黒・白それぞれ0〜11。左から数字の小さい順、同数なら黒→白の順です。</p></article>
+      <article><b>2人戦</b><p>4枚ずつ配り、山札から1枚引いてアタックします。</p></article>
+      <article><b>3人戦</b><p>3枚ずつ配ります。手番では他のどの相手にもアタックできます。</p></article>
+      <article><b>4人戦</b><p>2枚ずつ配ります。全カードがOPENになったプレイヤーは脱落し、残った1人が勝利です。</p></article>
+      <article><b>ペア戦</b><p>4人で2対2。各6枚、山札なし。手番前に味方が自分の伏せカード1枚を選び「トス」して数字を味方だけに見せます。</p></article>
+      <article><b>ペア戦の攻撃</b><p>自分の伏せカード1枚を攻撃用に選択。失敗するとそのカードがOPEN。敵2人を先に全OPENにしたチームが勝利です。</p></article>
+      <article><b>CPU</b><p>人間とCPUを混在できます。ロビーのホストがCPUを追加・削除します。</p></article>
+      <article><b>この版</b><p>1ラウンド勝負です。公式のポイントチップと複数ラウンド総合得点は未実装です。</p></article>
     </div>
   </div>
+</div>
 
-  <aside id="logDrawer" class="drawer">
-    <div class="drawer-head">
-      <div><div class="eyebrow">GAME LOG</div><h2>進行ログ</h2></div>
-      <button id="closeLogBtn" class="close-btn">×</button>
-    </div>
-    <div id="logList" class="log-list"></div>
-  </aside>
-  <div id="drawerShade" class="drawer-shade hidden"></div>
+<aside id="logDrawer" class="drawer">
+  <div class="drawer-head">
+    <div><div class="eyebrow">GAME LOG</div><h2>進行ログ</h2></div>
+    <button id="closeLogBtn" class="close-btn">×</button>
+  </div>
+  <div id="logList" class="log-list"></div>
+</aside>
+<div id="drawerShade" class="drawer-shade hidden"></div>
 
-  <div id="resultOverlay" class="modal hidden">
-    <div class="result-card">
-      <div class="eyebrow">ROUND END</div>
-      <h1 id="resultTitle">YOU WIN</h1>
-      <p id="resultText"></p>
-      <div class="result-actions">
-        <button id="rematchBtn" class="primary-btn">再戦準備</button>
-        <button id="viewBoardBtn" class="secondary-btn">盤面を見る</button>
-      </div>
+<div id="resultOverlay" class="modal hidden">
+  <div class="result-card">
+    <div class="eyebrow">ROUND END</div>
+    <h1 id="resultTitle">YOU WIN</h1>
+    <p id="resultText"></p>
+    <div class="result-actions">
+      <button id="rematchBtn" class="primary-btn">再戦READY</button>
+      <button id="viewBoardBtn" class="secondary-btn">盤面を見る</button>
     </div>
   </div>
+</div>
 
-  <script src="./config.js"></script>
-  <script src="./app.js"></script>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
 </body>
 </html>

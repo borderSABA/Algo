@@ -1,14 +1,10 @@
-ALGO ONLINE v0.2 - GitHub upload
+ALGO ONLINE v0.3 - GitHub Pages files
 
-Upload all files in this folder to the root of your GitHub Pages repository.
-
-Default server:
-https://algo-online.naitoryo7110.workers.dev
-
-If the deployed Worker URL is different, edit config.js only.
-
-Files:
+Upload these files to the GitHub Pages repository:
 - index.html
 - style.css
 - app.js
 - config.js
+
+config.js server:
+https://algo-online.naitoryo7110.workers.dev

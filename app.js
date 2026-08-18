@@ -2,295 +2,216 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const SERVER_URL = String(window.ALGO_CONFIG?.SERVER_URL || "").replace(/\/+$/, "");
-const WS_URL = SERVER_URL.replace(/^http/i, "ws");
-const sessionKey = "algo_online_session_v02";
-const nameKey = "algo_online_name_v02";
-const sessionId = localStorage.getItem(sessionKey) || crypto.randomUUID();
-localStorage.setItem(sessionKey, sessionId);
+const WS_URL = SERVER_URL.replace(/^http/i,"ws");
+const sessionKey="algo_online_session_v03", nameKey="algo_online_name_v03";
+const sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();
+localStorage.setItem(sessionKey,sessionId);
 
-let socket = null;
-let currentRoom = null;
-let roomView = null;
-let gameView = null;
-let selectedTargetId = null;
-let logs = [];
-let memos = {};
-let resultShownFor = null;
-let reconnectTimer = null;
-let intentionalClose = false;
+let socket=null,currentRoom=null,roomView=null,gameView=null;
+let selectedTarget=null,logs=[],memos={},resultShownFor=null,reconnectTimer=null,intentionalClose=false,cpuTimer=null;
 
-const els = {
-  titleScreen:$("titleScreen"), roomScreen:$("roomScreen"), gameScreen:$("gameScreen"),
-  nameInput:$("nameInput"), roomGrid:$("roomGrid"), serverState:$("serverState"),
-  roomTitle:$("roomTitle"), waitingPlayers:$("waitingPlayers"), waitingText:$("waitingText"), readyBtn:$("readyBtn"),
-  opponentName:$("opponentName"), opponentConn:$("opponentConn"), selfName:$("selfName"),
-  opponentCards:$("opponentCards"), selfCards:$("selfCards"), opponentOpen:$("opponentOpen"), opponentTotal:$("opponentTotal"),
-  selfOpen:$("selfOpen"), selfTotal:$("selfTotal"), turnText:$("turnText"), deckCount:$("deckCount"), gameRoomLabel:$("gameRoomLabel"),
-  actionTitle:$("actionTitle"), actionHelp:$("actionHelp"), guessPanel:$("guessPanel"), targetLabel:$("targetLabel"),
-  numberPad:$("numberPad"), decisionPanel:$("decisionPanel"), drawCard:$("drawCard"), memoNumbers:$("memoNumbers"),
-  memoTargetText:$("memoTargetText"), clearMemoBtn:$("clearMemoBtn"), toastLayer:$("toastLayer"), logList:$("logList"),
-  logDrawer:$("logDrawer"), drawerShade:$("drawerShade"), resultOverlay:$("resultOverlay"), resultTitle:$("resultTitle"), resultText:$("resultText")
+const els={
+ titleScreen:$("titleScreen"),roomScreen:$("roomScreen"),gameScreen:$("gameScreen"),nameInput:$("nameInput"),roomGrid:$("roomGrid"),serverState:$("serverState"),
+ roomTitle:$("roomTitle"),hostLabel:$("hostLabel"),waitingPlayers:$("waitingPlayers"),waitingText:$("waitingText"),readyBtn:$("readyBtn"),
+ addCpuBtn:$("addCpuBtn"),removeCpuBtn:$("removeCpuBtn"),modeButtons:$("modeButtons"),
+ gameRoomLabel:$("gameRoomLabel"),modeChip:$("modeChip"),turnText:$("turnText"),deckCount:$("deckCount"),deckLabel:$("deckLabel"),
+ othersGrid:$("othersGrid"),selfName:$("selfName"),selfTeam:$("selfTeam"),selfCards:$("selfCards"),selfOpen:$("selfOpen"),selfTotal:$("selfTotal"),
+ actionTitle:$("actionTitle"),actionHelp:$("actionHelp"),guessPanel:$("guessPanel"),targetLabel:$("targetLabel"),numberPad:$("numberPad"),
+ decisionPanel:$("decisionPanel"),drawCard:$("drawCard"),drawLabel:$("drawLabel"),tossReveal:$("tossReveal"),skipTossBtn:$("skipTossBtn"),
+ memoNumbers:$("memoNumbers"),memoTargetText:$("memoTargetText"),clearMemoBtn:$("clearMemoBtn"),toastLayer:$("toastLayer"),
+ logList:$("logList"),logDrawer:$("logDrawer"),drawerShade:$("drawerShade"),resultOverlay:$("resultOverlay"),resultTitle:$("resultTitle"),resultText:$("resultText")
 };
 
-els.nameInput.value = localStorage.getItem(nameKey) || "";
-els.nameInput.addEventListener("input", () => localStorage.setItem(nameKey, els.nameInput.value.trim()));
-$("refreshRoomsBtn").addEventListener("click", refreshRooms);
-$("rulesBtn").addEventListener("click", () => $("rulesModal").classList.remove("hidden"));
-document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => $(b.dataset.close).classList.add("hidden")));
-$("rulesModal").addEventListener("click", e => { if(e.target.id==="rulesModal") $("rulesModal").classList.add("hidden"); });
-$("logBtn").addEventListener("click", () => { els.logDrawer.classList.add("open"); els.drawerShade.classList.remove("hidden"); });
-$("closeLogBtn").addEventListener("click", closeLog);
-els.drawerShade.addEventListener("click", closeLog);
-$("leaveBtn").addEventListener("click", leaveRoom);
-els.readyBtn.addEventListener("click", () => send({type:"ready"}));
-$("continueBtn").addEventListener("click", () => send({type:"continue"}));
-$("stayBtn").addEventListener("click", () => send({type:"stay"}));
-$("viewBoardBtn").addEventListener("click", () => els.resultOverlay.classList.add("hidden"));
-$("rematchBtn").addEventListener("click", () => { els.resultOverlay.classList.add("hidden"); send({type:"ready"}); });
-els.clearMemoBtn.addEventListener("click", () => {
-  if(!selectedTargetId) return;
-  memos[selectedTargetId] = new Set();
-  renderMemo(); renderNumberPad();
-});
+const MODE_LABEL={2:"2人戦",3:"3人戦",4:"4人戦",pair:"ペア戦"};
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const teamOf=i=>i%2===0?"A":"B";
 
-function closeLog(){ els.logDrawer.classList.remove("open"); els.drawerShade.classList.add("hidden"); }
+els.nameInput.value=localStorage.getItem(nameKey)||"";
+els.nameInput.addEventListener("input",()=>localStorage.setItem(nameKey,els.nameInput.value.trim()));
+$("refreshRoomsBtn").addEventListener("click",refreshRooms);
+$("rulesBtn").addEventListener("click",()=>$("rulesModal").classList.remove("hidden"));
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>$(b.dataset.close).classList.add("hidden")));
+$("rulesModal").addEventListener("click",e=>{if(e.target.id==="rulesModal")$("rulesModal").classList.add("hidden")});
+$("logBtn").addEventListener("click",()=>{els.logDrawer.classList.add("open");els.drawerShade.classList.remove("hidden")});
+$("closeLogBtn").addEventListener("click",closeLog);els.drawerShade.addEventListener("click",closeLog);
+$("leaveBtn").addEventListener("click",leaveRoom);
+els.readyBtn.addEventListener("click",()=>send({type:"ready"}));
+els.addCpuBtn.addEventListener("click",()=>send({type:"add_cpu"}));
+els.removeCpuBtn.addEventListener("click",()=>send({type:"remove_cpu"}));
+els.modeButtons.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>send({type:"set_mode",mode:b.dataset.mode})));
+$("continueBtn").addEventListener("click",()=>send({type:"continue"}));
+$("stayBtn").addEventListener("click",()=>send({type:"stay"}));
+els.skipTossBtn.addEventListener("click",()=>send({type:"skip_toss"}));
+$("viewBoardBtn").addEventListener("click",()=>els.resultOverlay.classList.add("hidden"));
+$("rematchBtn").addEventListener("click",()=>{els.resultOverlay.classList.add("hidden");send({type:"ready"})});
+els.clearMemoBtn.addEventListener("click",()=>{if(!selectedTarget)return;memos[selectedTarget.cardId]=new Set();renderMemo();renderNumberPad()});
+
+function closeLog(){els.logDrawer.classList.remove("open");els.drawerShade.classList.add("hidden")}
 function setScreen(name){
-  els.titleScreen.classList.toggle("hidden", name!=="title");
-  els.roomScreen.classList.toggle("hidden", name!=="room");
-  els.gameScreen.classList.toggle("hidden", name!=="game");
-  document.querySelectorAll(".game-only").forEach(x => x.classList.toggle("hidden", name==="title"));
+ els.titleScreen.classList.toggle("hidden",name!=="title");els.roomScreen.classList.toggle("hidden",name!=="room");els.gameScreen.classList.toggle("hidden",name!=="game");
+ document.querySelectorAll(".game-only").forEach(x=>x.classList.toggle("hidden",name==="title"));
 }
-function playerName(){
-  const n = els.nameInput.value.trim();
-  if(!n){ toast("プレイヤー名を入力してください", false); els.nameInput.focus(); return null; }
-  localStorage.setItem(nameKey,n);
-  return n;
-}
+function playerName(){const n=els.nameInput.value.trim();if(!n){toast("プレイヤー名を入力してください",false);return null}localStorage.setItem(nameKey,n);return n}
 async function refreshRooms(){
-  try{
-    const r = await fetch(`${SERVER_URL}/rooms`, {cache:"no-store"});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const data = await r.json();
-    setServerOnline(true);
-    renderRooms(data.rooms || []);
-  }catch(e){
-    setServerOnline(false);
-    els.roomGrid.innerHTML = `<div class="room-card" style="grid-column:1/-1"><div class="seat-list">Cloudflare Workersへ接続できません。SERVER_URLまたはデプロイ状態を確認してください。</div></div>`;
-  }
+ try{
+  const r=await fetch(`${SERVER_URL}/rooms`,{cache:"no-store"});if(!r.ok)throw new Error();
+  const d=await r.json();setServerOnline(true);renderRooms(d.rooms||[]);
+ }catch{setServerOnline(false);els.roomGrid.innerHTML=`<div class="room-card" style="grid-column:1/-1"><div class="seat-list">Cloudflare Workersへ接続できません。</div></div>`}
 }
-function setServerOnline(ok){
-  els.serverState.classList.toggle("online",ok); els.serverState.classList.toggle("offline",!ok);
-  els.serverState.querySelector("span:last-child").textContent = ok ? "サーバー接続OK" : "サーバー未接続";
-}
+function setServerOnline(ok){els.serverState.classList.toggle("online",ok);els.serverState.classList.toggle("offline",!ok);els.serverState.querySelector("span:last-child").textContent=ok?"サーバー接続OK":"サーバー未接続"}
 function renderRooms(rooms){
-  els.roomGrid.innerHTML="";
-  for(const room of rooms){
-    const card=document.createElement("div");
-    const occupied=room.players?.length||0, full=occupied>=2;
-    card.className="room-card"+(full?" full":"");
-    const names=(room.players||[]).map(p=>escapeHtml(p.name)+(p.connected?"":" (OFFLINE)")).join("<br>") || "空室";
-    card.innerHTML=`
-      <div class="room-top"><div class="room-name">ROOM ${room.room}</div><div class="room-status ${occupied===2?"ready":""}">${occupied}/2</div></div>
-      <div class="seat-list">${names}</div>
-      <div class="room-actions">
-        <button class="enter-btn" ${full?"disabled":""}>入室</button>
-        <button class="reset-btn">初期化</button>
-      </div>`;
-    card.querySelector(".enter-btn").addEventListener("click",()=>joinRoom(room.room));
-    card.querySelector(".reset-btn").addEventListener("click",()=>resetRoom(room.room));
-    els.roomGrid.appendChild(card);
-  }
+ els.roomGrid.innerHTML="";
+ for(const room of rooms){
+  const req=room.requiredPlayers||2,occ=room.players?.length||0,full=occ>=req;
+  const card=document.createElement("div");card.className="room-card"+(full?" full":"");
+  const names=(room.players||[]).map(p=>`${esc(p.name)}${p.isCpu?" [CPU]":p.connected?"":" (OFFLINE)"}`).join("<br>")||"空室";
+  card.innerHTML=`<div class="room-top"><div><div class="room-name">ROOM ${esc(room.room)}</div><div class="room-mode">${MODE_LABEL[room.mode]||"2人戦"}</div></div><div class="room-status">${occ}/${req}</div></div><div class="seat-list">${names}</div><div class="room-actions"><button class="enter-btn" ${full?"disabled":""}>入室</button><button class="reset-btn">初期化</button></div>`;
+  card.querySelector(".enter-btn").addEventListener("click",()=>joinRoom(room.room));
+  card.querySelector(".reset-btn").addEventListener("click",()=>resetRoom(room.room));els.roomGrid.appendChild(card);
+ }
 }
 async function resetRoom(room){
-  if(!confirm(`ROOM ${room} を初期化しますか？\n対戦中の場合もゲームが終了します。`)) return;
-  try{
-    const r=await fetch(`${SERVER_URL}/reset?room=${encodeURIComponent(room)}`,{method:"POST"});
-    if(!r.ok) throw new Error();
-    toast(`ROOM ${room} を初期化しました`,true);
-    if(currentRoom===String(room)) returnToTitle(false);
-    setTimeout(refreshRooms,250);
-  }catch{ toast("部屋の初期化に失敗しました",false); }
+ if(!confirm(`ROOM ${room} を初期化しますか？`))return;
+ try{const r=await fetch(`${SERVER_URL}/reset?room=${encodeURIComponent(room)}`,{method:"POST"});if(!r.ok)throw new Error();toast("部屋を初期化しました",true);if(currentRoom===String(room))returnToTitle(false);setTimeout(refreshRooms,250)}catch{toast("初期化に失敗しました",false)}
 }
-function joinRoom(room){
-  const name=playerName(); if(!name) return;
-  currentRoom=String(room); intentionalClose=false;
-  els.roomTitle.textContent=`ROOM ${room}`;
-  setScreen("room");
-  connect(name);
-}
+function joinRoom(room){const name=playerName();if(!name)return;currentRoom=String(room);intentionalClose=false;setScreen("room");connect(name)}
 function connect(name){
-  if(socket){ try{socket.close();}catch{} }
-  const u=`${WS_URL}/ws?room=${encodeURIComponent(currentRoom)}&session=${encodeURIComponent(sessionId)}&name=${encodeURIComponent(name)}`;
-  socket=new WebSocket(u);
-  socket.addEventListener("open",()=>{ addLog("サーバーへ接続しました。"); });
-  socket.addEventListener("message",ev=>{
-    let msg; try{msg=JSON.parse(ev.data);}catch{return;}
-    handleMessage(msg);
-  });
-  socket.addEventListener("close",()=>{
-    if(intentionalClose) return;
-    addLog("接続が切れました。再接続を試みます。");
-    if(currentRoom){
-      clearTimeout(reconnectTimer);
-      reconnectTimer=setTimeout(()=>connect(playerName()||"PLAYER"),1400);
-    }
-  });
+ if(socket){try{socket.close()}catch{}}
+ const u=`${WS_URL}/ws?room=${encodeURIComponent(currentRoom)}&session=${encodeURIComponent(sessionId)}&name=${encodeURIComponent(name)}`;
+ socket=new WebSocket(u);
+ socket.addEventListener("message",ev=>{let m;try{m=JSON.parse(ev.data)}catch{return}handleMessage(m)});
+ socket.addEventListener("close",()=>{if(intentionalClose)return;if(currentRoom){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>connect(playerName()||"PLAYER"),1200)}});
 }
+function send(data){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
 function handleMessage(msg){
-  if(msg.type==="error"){ toast(msg.message||"エラー",false); if(msg.code==="ROOM_FULL") returnToTitle(false); return; }
-  if(msg.type==="notice"){ addLog(msg.message); toast(msg.message,msg.good); return; }
-  if(msg.type==="state"){
-    roomView=msg.room||null; gameView=msg.game||null;
-    if(Array.isArray(msg.logs)) logs=msg.logs;
-    renderState();
-  }
+ if(msg.type==="error"){toast(msg.message||"エラー",false);if(msg.code==="ROOM_FULL")returnToTitle(false);return}
+ if(msg.type==="notice"){toast(msg.message,msg.good);return}
+ if(msg.type==="state"){roomView=msg.room||null;gameView=msg.game||null;if(Array.isArray(msg.logs))logs=msg.logs;renderState()}
 }
 function renderState(){
-  if(!roomView) return;
-  const me=roomView.players.find(p=>p.id===sessionId);
-  if(!me){ returnToTitle(false); return; }
-  if(!gameView || gameView.status==="waiting"){
-    setScreen("room");
-    els.roomTitle.textContent=`ROOM ${roomView.room}`;
-    els.waitingPlayers.innerHTML=[0,1].map(i=>{
-      const p=roomView.players[i];
-      return `<div class="waiting-seat ${p?.ready?"ready":""}"><div class="seat-no">PLAYER ${i+1}</div><strong>${p?escapeHtml(p.name):"募集中"}</strong><div class="room-status">${p?(p.ready?"READY":"WAIT"):"EMPTY"}</div></div>`;
-    }).join("");
-    const two=roomView.players.length===2;
-    els.waitingText.textContent=two ? "2人揃いました。両者がREADYで開始します。" : "対戦相手を待っています。";
-    els.readyBtn.disabled=!two;
-    els.readyBtn.textContent=me.ready?"READY 済み":"READY";
-    renderLog();
-    return;
-  }
-  setScreen("game");
-  els.gameRoomLabel.textContent=`ROOM ${roomView.room}`;
-  renderGame(me);
+ if(!roomView)return;
+ const me=roomView.players.find(p=>p.id===sessionId);if(!me){returnToTitle(false);return}
+ if(!gameView||gameView.status==="waiting"){setScreen("room");renderLobby(me);return}
+ setScreen("game");renderGame(me);scheduleCpuTick();
+}
+function renderLobby(me){
+ els.roomTitle.textContent=`ROOM ${roomView.room}`;els.hostLabel.textContent=roomView.hostId===sessionId?"HOST":"GUEST";
+ const isHost=roomView.hostId===sessionId,req=roomView.requiredPlayers||2;
+ els.modeButtons.querySelectorAll("button").forEach(b=>{b.classList.toggle("active",b.dataset.mode===roomView.mode);b.disabled=!isHost});
+ els.addCpuBtn.disabled=!isHost||roomView.players.length>=req;els.removeCpuBtn.disabled=!isHost||!roomView.players.some(p=>p.isCpu);
+ els.waitingPlayers.innerHTML=Array.from({length:req},(_,i)=>{
+  const p=roomView.players[i],team=roomView.mode==="pair"?teamOf(i):null;
+  return `<div class="waiting-seat ${p?.ready||p?.isCpu?"ready":""} ${p?.isCpu?"cpu":""}"><div class="seat-no">PLAYER ${i+1}${team?` / <span class="team${team}">TEAM ${team}</span>`:""}</div><strong>${p?esc(p.name):"募集中"}</strong><div class="seat-meta">${p?(p.isCpu?"CPU":p.ready?"READY":"WAIT"):"EMPTY"}${p&&!p.isCpu&&!p.connected?" / OFFLINE":""}</div></div>`;
+ }).join("");
+ const full=roomView.players.length===req;
+ els.waitingText.textContent=full?"全員が揃いました。人間プレイヤーがREADYで開始します。":`あと ${req-roomView.players.length} 席です。ホストはCPUを追加できます。`;
+ els.readyBtn.disabled=!full;els.readyBtn.textContent=me.ready?"READY 済み":"READY";renderLog();
 }
 function renderGame(me){
-  const myIndex=roomView.players.findIndex(p=>p.id===sessionId);
-  const oppIndex=myIndex===0?1:0;
-  const opp=roomView.players[oppIndex];
-  const selfHand=gameView.hands[myIndex]||[];
-  const oppHand=gameView.hands[oppIndex]||[];
-  els.selfName.textContent=me.name;
-  els.opponentName.textContent=opp?.name||"相手";
-  els.opponentConn.textContent=opp?.connected===false?"OFFLINE":"ONLINE";
-  els.opponentConn.classList.toggle("offline",opp?.connected===false);
-  els.deckCount.textContent=gameView.deckCount;
-  els.selfOpen.textContent=selfHand.filter(c=>c.revealed).length; els.selfTotal.textContent=selfHand.length;
-  els.opponentOpen.textContent=oppHand.filter(c=>c.revealed).length; els.opponentTotal.textContent=oppHand.length;
-  renderCards(els.selfCards,selfHand,true);
-  renderCards(els.opponentCards,oppHand,false);
-
-  const myTurn=gameView.turn===myIndex;
-  els.turnText.textContent=gameView.status==="ended"?"ラウンド終了":myTurn?"あなたのターン":`${opp?.name||"相手"}のターン`;
-  document.querySelector(".turn-dot").style.background=myTurn?"var(--accent)":"var(--blue)";
-
-  els.drawCard.className="draw-card";
-  if(gameView.drawn && myTurn){
-    els.drawCard.classList.add(gameView.drawn.color);
-    els.drawCard.textContent=gameView.drawn.num;
-  }else{ els.drawCard.classList.add("empty"); els.drawCard.textContent="—"; }
-
-  els.guessPanel.classList.add("hidden");
-  els.decisionPanel.classList.add("hidden");
-  if(gameView.status==="ended"){
-    els.actionTitle.textContent="ROUND END";
-    els.actionHelp.textContent="盤面を確認できます。";
-    showResultIfNeeded(myIndex);
-  }else if(!myTurn){
-    els.actionTitle.textContent=`${opp?.name||"相手"}が推理中`;
-    els.actionHelp.textContent="相手のアタックを待っています。";
-    selectedTargetId=null;
-  }else if(gameView.phase==="attack"){
-    els.actionTitle.textContent="相手のカードを推理";
-    els.actionHelp.textContent="伏せカードを1枚選択して数字を宣言します。";
-    els.guessPanel.classList.remove("hidden");
-    if(selectedTargetId && !oppHand.some(c=>c.id===selectedTargetId && !c.revealed)) selectedTargetId=null;
-    els.targetLabel.textContent=selectedTargetId?"選択中のカードへアタック":"相手の伏せカードを選択";
-  }else if(gameView.phase==="decision"){
-    els.actionTitle.textContent="アタック成功";
-    els.actionHelp.textContent="続けて狙うか、ステイして引いたカードを伏せたまま残します。";
-    els.decisionPanel.classList.remove("hidden");
-    selectedTargetId=null;
-  }
-  renderNumberPad(); renderMemo(); renderLog();
+ const meIdx=roomView.players.findIndex(p=>p.id===sessionId),pair=gameView.mode==="pair";
+ els.gameRoomLabel.textContent=`ROOM ${roomView.room}`;els.modeChip.textContent=MODE_LABEL[gameView.mode]||gameView.mode;
+ els.deckCount.textContent=gameView.deckCount;els.deckLabel.textContent=pair?"NO DECK":"DRAW";els.drawLabel.textContent=pair?"攻撃に使うカード":"今回引いたカード";
+ els.selfName.textContent=me.name;els.selfTeam.classList.toggle("hidden",!pair);if(pair){els.selfTeam.textContent=`TEAM ${teamOf(meIdx)}`;els.selfTeam.className=`team-badge ${teamOf(meIdx)}`}
+ const selfHand=gameView.hands[meIdx]||[];els.selfOpen.textContent=selfHand.filter(c=>c.revealed).length;els.selfTotal.textContent=selfHand.length;
+ renderSelfCards(meIdx,selfHand);
+ renderOthers(meIdx);
+ const active=gameView.turn,activeP=roomView.players[active],myTurn=active===meIdx;
+ els.turnText.textContent=gameView.status==="ended"?"ラウンド終了":`${activeP?.name||"PLAYER"} のターン`;document.querySelector(".turn-dot").style.background=myTurn?"var(--accent)":"var(--blue)";
+ renderDraw(meIdx);renderAction(meIdx);renderMemo();renderLog();
+ if(gameView.status==="ended")showResultIfNeeded(meIdx);
 }
-function renderCards(root,cards,isSelf){
-  root.innerHTML="";
-  const n=Math.max(cards.length,1);
-  cards.forEach((card,i)=>{
-    const el=document.createElement("div");
-    const visible=isSelf || card.revealed || gameView.status==="ended";
-    el.className=`algo-card ${card.color} ${visible?"":"hidden-card"} ${card.revealed?"revealed":""} ${selectedTargetId===card.id?"selected":""}`;
-    el.style.flexBasis=`min(84px, calc((100% - ${(n-1)*6}px) / ${n}))`;
-    el.innerHTML=`<span class="pos">${i+1}</span><span class="number">${visible?card.num:"?"}</span>${isSelf&&card.revealed?'<span class="open-overlay">OPEN</span>':""}`;
-    if(!isSelf && !card.revealed && gameView.status==="playing" && gameView.phase==="attack"){
-      el.addEventListener("click",()=>{ selectedTargetId=card.id; renderGame(roomView.players.find(p=>p.id===sessionId)); });
-    }
-    root.appendChild(el);
-  });
+function renderOthers(meIdx){
+ const others=roomView.players.map((p,i)=>({p,i})).filter(x=>x.i!==meIdx);
+ els.othersGrid.className=`others-grid count-${others.length}`;els.othersGrid.innerHTML="";
+ for(const {p,i} of others){
+  const panel=document.createElement("div"),pair=gameView.mode==="pair",mate=pair&&teamOf(i)===teamOf(meIdx),eliminated=!!gameView.eliminated?.[i],active=gameView.turn===i;
+  panel.className=`player-panel ${mate?"teammate":""} ${eliminated?"eliminated":""} ${active?"active":""}`;
+  const team=pair?`<span class="team-badge ${teamOf(i)}">TEAM ${teamOf(i)}</span>`:"";
+  const conn=p.isCpu?`<span class="conn-label">CPU</span>`:`<span class="conn-label ${p.connected?"":"offline"}">${p.connected?"ONLINE":"OFFLINE"}</span>`;
+  const hand=gameView.hands[i]||[];
+  panel.innerHTML=`<div class="player-head"><div><strong>${esc(p.name)}</strong>${team}${conn}</div><div class="open-meter">${hand.filter(c=>c.revealed).length}/${hand.length} OPEN</div></div><div class="card-row"></div>`;
+  const row=panel.querySelector(".card-row");hand.forEach(c=>row.appendChild(makeCard(c,i,false,meIdx)));els.othersGrid.appendChild(panel);
+ }
+}
+function renderSelfCards(meIdx,hand){els.selfCards.innerHTML="";hand.forEach(c=>els.selfCards.appendChild(makeCard(c,meIdx,true,meIdx)))}
+function makeCard(c,ownerIdx,isSelf,meIdx){
+ const d=document.createElement("div"),show=c.num!==null&&c.num!==undefined;
+ d.className=`algo-card ${c.color} ${show?"":"hidden-card"} ${c.revealed?"revealed":""}`;
+ d.dataset.id=c.id;d.dataset.owner=ownerIdx;
+ d.innerHTML=`${show?`<span class="num">${c.num}</span>`:`<span class="qmark">?</span>`}${c.revealed?`<span class="open-overlay">OPEN</span>`:""}${gameView.attackCardId===c.id?`<span class="attack-badge">ATTACK</span>`:""}${gameView.toss?.cardId===c.id?`<span class="toss-badge">TOSS</span>`:""}`;
+ let clickable=false,action=null;
+ if(gameView.status==="playing"){
+  if(gameView.mode==="pair"&&gameView.phase==="toss"&&gameView.toss?.from===meIdx&&isSelf&&!c.revealed){clickable=true;action=()=>send({type:"toss_card",cardId:c.id})}
+  else if(gameView.mode==="pair"&&gameView.turn===meIdx&&gameView.phase==="choose_attack_card"&&isSelf&&!c.revealed){clickable=true;action=()=>send({type:"select_attack_card",cardId:c.id})}
+  else if(gameView.turn===meIdx&&gameView.phase==="attack"&&!isSelf&&!c.revealed&&canAttackOwner(meIdx,ownerIdx)){clickable=true;action=()=>selectTarget(ownerIdx,c.id)}
+ }
+ if(selectedTarget?.cardId===c.id)d.classList.add("selected");
+ if(clickable){d.classList.add("clickable");d.addEventListener("click",action)}
+ return d;
+}
+function canAttackOwner(meIdx,ownerIdx){
+ if(ownerIdx===meIdx||gameView.eliminated?.[ownerIdx])return false;
+ return gameView.mode!=="pair"||teamOf(meIdx)!==teamOf(ownerIdx);
+}
+function selectTarget(owner,cardId){
+ selectedTarget={owner,cardId};const p=roomView.players[owner],hand=gameView.hands[owner],idx=hand.findIndex(c=>c.id===cardId),c=hand[idx];
+ els.targetLabel.textContent=`${p.name} の左から${idx+1}枚目（${c.color==="black"?"黒":"白"}）`;renderGame(roomView.players.find(p=>p.id===sessionId));
+}
+function renderDraw(meIdx){
+ els.drawCard.className="draw-card";
+ if(gameView.mode==="pair"){
+  const hand=gameView.hands[meIdx]||[],a=hand.find(c=>c.id===gameView.attackCardId);
+  if(gameView.turn===meIdx&&a){els.drawCard.classList.add(a.color);els.drawCard.textContent=a.num}else{els.drawCard.classList.add("empty");els.drawCard.textContent="—"};return;
+ }
+ if(gameView.turn===meIdx&&gameView.drawn){els.drawCard.classList.add(gameView.drawn.color);els.drawCard.textContent=gameView.drawn.num}else{els.drawCard.classList.add("empty");els.drawCard.textContent="—"}
+}
+function renderAction(meIdx){
+ els.guessPanel.classList.add("hidden");els.decisionPanel.classList.add("hidden");els.tossReveal.classList.add("hidden");els.skipTossBtn.classList.add("hidden");
+ if(gameView.tossReveal){els.tossReveal.innerHTML=`味方からのTOSS <b>${gameView.tossReveal.color==="black"?"黒":"白"} ${gameView.tossReveal.num}</b>`;els.tossReveal.classList.remove("hidden")}
+ if(gameView.status==="ended"){els.actionTitle.textContent="ROUND END";els.actionHelp.textContent="盤面を見ることができます。";return}
+ const active=gameView.turn,activeP=roomView.players[active],myTurn=active===meIdx;
+ if(gameView.mode==="pair"&&gameView.phase==="toss"){
+  if(gameView.toss?.from===meIdx){els.actionTitle.textContent="TOSS";els.actionHelp.textContent=`味方 ${activeP.name} に見せる自分の伏せカードを1枚選択してください。`;return}
+  if(myTurn){els.actionTitle.textContent="味方のTOSS待ち";els.actionHelp.textContent="味方が見せるカードを選んでいます。不要なら省略できます。";els.skipTossBtn.classList.remove("hidden");return}
+  els.actionTitle.textContent="TOSS中";els.actionHelp.textContent=`${activeP.name} の手番準備中です。`;return;
+ }
+ if(!myTurn){els.actionTitle.textContent=`${activeP?.name||"相手"}が推理中`;els.actionHelp.textContent="手番を待っています。";selectedTarget=null;return}
+ if(gameView.mode==="pair"&&gameView.phase==="choose_attack_card"){els.actionTitle.textContent="攻撃カードを選択";els.actionHelp.textContent="自分の伏せカード1枚を選んでアタックに使います。";selectedTarget=null;return}
+ if(gameView.phase==="attack"){
+  els.actionTitle.textContent="相手カードを推理";els.actionHelp.textContent=gameView.mode==="pair"?"敵チームの伏せカードを選択してください。":"好きな相手の伏せカードを選択してください。";
+  els.guessPanel.classList.remove("hidden");renderNumberPad();return;
+ }
+ if(gameView.phase==="decision"){els.actionTitle.textContent="アタック成功";els.actionHelp.textContent="続行するか、ステイして手番を終了します。";els.decisionPanel.classList.remove("hidden");selectedTarget=null}
 }
 function renderNumberPad(){
-  els.numberPad.innerHTML="";
-  const memo=selectedTargetId ? (memos[selectedTargetId] ||= new Set()) : null;
-  for(let n=0;n<=11;n++){
-    const b=document.createElement("button"); b.className="num-btn"; b.textContent=n;
-    if(memo?.has(n)) b.classList.add("memo-out");
-    b.disabled=!selectedTargetId;
-    b.addEventListener("click",()=>{ if(selectedTargetId) send({type:"guess",targetId:selectedTargetId,number:n}); });
-    els.numberPad.appendChild(b);
-  }
+ els.numberPad.innerHTML="";const memo=selectedTarget?(memos[selectedTarget.cardId]||new Set()):null;
+ for(let n=0;n<=11;n++){const b=document.createElement("button");b.className="num-btn"+(memo?.has(n)?" memo-out":"");b.textContent=n;b.disabled=!selectedTarget;b.addEventListener("click",()=>{if(selectedTarget)send({type:"guess",targetOwner:selectedTarget.owner,targetId:selectedTarget.cardId,number:n})});els.numberPad.appendChild(b)}
+ if(selectedTarget){const p=roomView.players[selectedTarget.owner],h=gameView.hands[selectedTarget.owner],i=h.findIndex(c=>c.id===selectedTarget.cardId),c=h[i];els.targetLabel.textContent=`${p.name} の左から${i+1}枚目（${c.color==="black"?"黒":"白"}）`}else els.targetLabel.textContent="伏せカードを選択";
 }
 function renderMemo(){
-  els.memoNumbers.innerHTML="";
-  els.memoTargetText.textContent=selectedTargetId?"選択カードの除外候補":"相手カードを選択すると使えます";
-  const memo=selectedTargetId ? (memos[selectedTargetId] ||= new Set()) : null;
-  for(let n=0;n<=11;n++){
-    const b=document.createElement("button"); b.className="memo-btn"; b.textContent=n;
-    if(!selectedTargetId) b.disabled=true;
-    if(memo?.has(n)) b.classList.add("off");
-    b.addEventListener("click",()=>{ if(!selectedTargetId)return; memo.has(n)?memo.delete(n):memo.add(n); renderMemo(); renderNumberPad(); });
-    els.memoNumbers.appendChild(b);
-  }
+ els.memoNumbers.innerHTML="";const memo=selectedTarget?(memos[selectedTarget.cardId]||(memos[selectedTarget.cardId]=new Set())):null;
+ els.memoTargetText.textContent=selectedTarget?"選択中カードの候補除外":"相手カードを選択すると使えます";
+ for(let n=0;n<=11;n++){const b=document.createElement("button");b.className="memo-btn"+(memo?.has(n)?" off":"");b.textContent=n;b.disabled=!selectedTarget;b.addEventListener("click",()=>{if(!selectedTarget)return;memo.has(n)?memo.delete(n):memo.add(n);renderMemo();renderNumberPad()});els.memoNumbers.appendChild(b)}
 }
-function showResultIfNeeded(myIndex){
-  const key=`${gameView.gameId}:${gameView.winner}`;
-  if(resultShownFor===key) return;
-  resultShownFor=key;
-  const win=gameView.winner===myIndex;
-  els.resultTitle.textContent=win?"YOU WIN":"YOU LOSE";
-  els.resultTitle.style.color=win?"var(--accent)":"#ff7b84";
-  els.resultText.textContent=win?"相手のカードをすべてOPENにしました。":"あなたのカードをすべてOPENにされました。";
-  els.resultOverlay.classList.remove("hidden");
+function scheduleCpuTick(){
+ clearTimeout(cpuTimer);if(!gameView||gameView.status!=="playing")return;
+ const meIdx=roomView.players.findIndex(p=>p.id===sessionId);
+ const coordinator=roomView.players.findIndex(p=>!p.isCpu&&p.connected);
+ if(meIdx!==coordinator)return;
+ const activeCpu=roomView.players[gameView.turn]?.isCpu;
+ const tossCpu=gameView.mode==="pair"&&gameView.phase==="toss"&&roomView.players[gameView.toss?.from]?.isCpu;
+ if(activeCpu||tossCpu)cpuTimer=setTimeout(()=>send({type:"cpu_tick"}),720);
 }
-function send(obj){
-  if(!socket || socket.readyState!==WebSocket.OPEN){ toast("サーバーへ再接続中です",false); return; }
-  socket.send(JSON.stringify(obj));
+function showResultIfNeeded(meIdx){
+ if(resultShownFor===gameView.gameId)return;resultShownFor=gameView.gameId;
+ let win=false,text="";
+ if(gameView.mode==="pair"){win=gameView.winnerTeam===teamOf(meIdx);text=`TEAM ${gameView.winnerTeam} の勝利です。`}
+ else{win=gameView.winner===meIdx;text=`${roomView.players[gameView.winner]?.name||"PLAYER"} の勝利です。`}
+ els.resultTitle.textContent=win?"YOU WIN":"YOU LOSE";els.resultTitle.style.color=win?"var(--accent)":"#ff7f88";els.resultText.textContent=text;setTimeout(()=>els.resultOverlay.classList.remove("hidden"),350)
 }
-function leaveRoom(){
-  if(!currentRoom) returnToTitle();
-  if(!confirm("この部屋から退出しますか？")) return;
-  send({type:"leave"});
-  setTimeout(()=>returnToTitle(true),120);
-}
-function returnToTitle(closeSocket=true){
-  intentionalClose=true; clearTimeout(reconnectTimer);
-  if(closeSocket && socket){ try{socket.close();}catch{} }
-  socket=null; currentRoom=null; roomView=null; gameView=null; selectedTargetId=null; resultShownFor=null;
-  $("resultOverlay").classList.add("hidden"); closeLog(); setScreen("title"); setTimeout(refreshRooms,180);
-}
-function addLog(text){ logs.unshift({time:new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"}),text}); logs=logs.slice(0,80); renderLog(); }
-function renderLog(){
-  els.logList.innerHTML=(logs||[]).map(x=>`<div class="log-entry"><div class="log-time">${escapeHtml(x.time||"")}</div><div class="log-text">${escapeHtml(x.text||"")}</div></div>`).join("");
-}
-function toast(text,good){
-  const t=document.createElement("div"); t.className="toast"+(good===true?" good":good===false?" bad":""); t.textContent=text; els.toastLayer.appendChild(t); setTimeout(()=>t.remove(),1250);
-}
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
-
-setScreen("title");
+function renderLog(){els.logList.innerHTML=logs.map(x=>`<div class="log-entry"><div class="log-time">${esc(x.time)}</div><div class="log-text">${esc(x.text)}</div></div>`).join("")}
+function toast(text,good){const t=document.createElement("div");t.className="toast"+(good===true?" good":good===false?" bad":"");t.textContent=text;els.toastLayer.appendChild(t);setTimeout(()=>t.remove(),1100)}
+function leaveRoom(){if(!currentRoom)return;send({type:"leave"});returnToTitle(true)}
+function returnToTitle(closeSocket=true){intentionalClose=true;clearTimeout(cpuTimer);if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
 refreshRooms();
-setInterval(()=>{ if(!currentRoom) refreshRooms(); },5000);
 })();
