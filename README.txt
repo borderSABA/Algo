@@ -1,11 +1,8 @@
-ALGO ONLINE v0.7.1 - GitHub Pages
+ALGO ONLINE v0.9 - GitHub Pages
 
-Attack presentation:
-- Declaration: 2 seconds
-- HIT / MISS result: 2 seconds
-- Total: about 4 seconds
-
+Attack and stay presentations now follow server-synchronized stages.
 Upload every file in this folder.
+Cloudflare Workers v0.9 is also required.
 
 Server:
 https://algo-online.naitoryo7110.workers.dev

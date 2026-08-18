@@ -525,3 +525,355 @@ button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
   .attack-result{font-size:9px;min-height:20px}
   .attack-result.reveal{font-size:16px}
 }
+
+
+/* ===== v0.8 MOBILE 4-PLAYER BOARD ===== */
+@media(max-width:760px){
+  .board.four-player-layout{
+    height:calc(100dvh - 83px);
+    width:calc(100% - 4px);
+    display:grid;
+    grid-template-columns:minmax(0,1.58fr) minmax(132px,.92fr);
+    grid-template-rows:repeat(4,minmax(0,1fr));
+    gap:4px;
+    padding:4px;
+    overflow:hidden;
+  }
+
+  /* 相手3人を左側上3段へ縦積み */
+  .board.four-player-layout .others-grid{
+    grid-column:1;
+    grid-row:1 / span 3;
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    grid-template-rows:repeat(3,minmax(0,1fr))!important;
+    gap:4px;
+    min-height:0;
+    overflow:hidden;
+  }
+
+  /* 自分は左側最下段 */
+  .board.four-player-layout .self-panel{
+    grid-column:1;
+    grid-row:4;
+    min-height:0;
+  }
+
+  /* 右側を丸ごと操作欄に */
+  .board.four-player-layout .center-panel{
+    grid-column:2;
+    grid-row:1 / span 4;
+    min-width:0;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+    gap:7px;
+    padding:7px 6px;
+    border-radius:11px;
+    background:rgba(4,43,26,.72);
+    border:1px solid rgba(238,248,241,.20);
+    box-shadow:inset 0 0 24px rgba(0,0,0,.10);
+  }
+
+  .board.four-player-layout .deck-block{
+    flex:0 0 auto;
+    min-height:58px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding-bottom:6px;
+    border-bottom:1px solid rgba(255,255,255,.11);
+  }
+  .board.four-player-layout .deck-card{
+    margin:0;
+    width:34px;
+    height:50px;
+    flex:0 0 auto;
+  }
+  .board.four-player-layout .deck-block span{
+    margin:0;
+    font-size:7px;
+    letter-spacing:.10em;
+    color:#d8e5dc;
+  }
+
+  .board.four-player-layout .action-box{
+    width:100%;
+    flex:1 1 auto;
+    min-height:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+  }
+
+  .board.four-player-layout .action-title{
+    font-size:14px;
+    line-height:1.18;
+    margin:0;
+  }
+  .board.four-player-layout .action-help{
+    font-size:7px;
+    line-height:1.35;
+    margin:4px 0 0;
+  }
+
+  .board.four-player-layout .guess-panel{
+    width:100%;
+    min-height:0;
+  }
+  .board.four-player-layout .target-label{
+    min-height:28px;
+    margin:7px 0 6px;
+    padding:5px 4px;
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:7px;
+    background:rgba(0,0,0,.15);
+    color:#fff;
+    font-size:7px;
+    line-height:1.35;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+
+  /* 右側で押しやすい 3列×4段 */
+  .board.four-player-layout .number-pad{
+    width:100%;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;
+  }
+  .board.four-player-layout .num-btn{
+    height:43px;
+    min-width:0;
+    border-radius:8px;
+    font-size:15px;
+    border-width:1px;
+  }
+
+  .board.four-player-layout .decision-panel{
+    width:100%;
+    flex-direction:column;
+    gap:6px;
+    margin-top:8px;
+  }
+  .board.four-player-layout .decision-panel .primary-btn,
+  .board.four-player-layout .decision-panel .secondary-btn{
+    width:100%;
+    height:39px;
+    font-size:8px;
+  }
+
+  .board.four-player-layout .toss-reveal{
+    width:100%;
+    justify-content:center;
+    margin-top:7px;
+    padding:5px;
+    font-size:7px;
+  }
+  .board.four-player-layout .compact{
+    width:100%;
+    height:34px;
+    font-size:7px;
+  }
+
+  /* 左側の4プレイヤー枠を読みやすく */
+  .board.four-player-layout .player-panel{
+    padding:5px 6px;
+    border-radius:10px;
+    min-height:0;
+    overflow:hidden;
+  }
+  .board.four-player-layout .player-head{
+    height:22px;
+    min-height:22px;
+  }
+  .board.four-player-layout .player-head strong{
+    max-width:112px;
+    font-size:10px;
+  }
+  .board.four-player-layout .conn-label,
+  .board.four-player-layout .team-badge{
+    font-size:5px;
+    padding:1px 4px;
+  }
+  .board.four-player-layout .open-meter{
+    display:block;
+    font-size:6px;
+  }
+
+  .board.four-player-layout .card-row{
+    height:calc(100% - 22px);
+    min-height:0;
+    justify-content:center;
+    gap:3px;
+    padding:2px 1px;
+    overflow:visible;
+  }
+
+  .board.four-player-layout .algo-card{
+    height:min(78px,calc(100% - 3px));
+    max-width:53px;
+    min-width:20px;
+    flex:0 1 48px;
+    border-radius:7px;
+  }
+  .board.four-player-layout .card-face{
+    grid-template-rows:13px 1fr;
+    padding:3px 1px 4px;
+  }
+  .board.four-player-layout .open-label{
+    font-size:6px;
+  }
+  .board.four-player-layout .open-label.self-open{
+    font-size:9px;
+  }
+  .board.four-player-layout .algo-card .num{
+    font-size:clamp(16px,5.4vw,27px);
+  }
+  .board.four-player-layout .algo-card .qmark{
+    font-size:clamp(14px,5vw,25px);
+  }
+  .board.four-player-layout .algo-card.turn-draw{
+    transform:translateY(-20%);
+  }
+
+  /* 4人表示では不要な古い3人横並び制約を解除 */
+  .board.four-player-layout .others-grid.count-3 .player-head .conn-label{
+    display:inline-block;
+  }
+  .board.four-player-layout .others-grid.count-3 .player-head strong{
+    max-width:112px;
+  }
+  .board.four-player-layout .others-grid.count-3 .open-meter{
+    display:block;
+  }
+}
+
+@media(max-width:430px){
+  .board.four-player-layout{
+    grid-template-columns:minmax(0,1.52fr) minmax(126px,.98fr);
+  }
+  .board.four-player-layout .player-head strong{
+    max-width:88px;
+  }
+  .board.four-player-layout .algo-card{
+    max-width:46px;
+    flex-basis:43px;
+  }
+  .board.four-player-layout .num-btn{
+    height:40px;
+    font-size:14px;
+  }
+}
+
+
+/* ===== v0.8.1 TOPBAR ORDER SAMPLE ===== */
+.order-sample{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  display:flex;
+  align-items:center;
+  gap:5px;
+  pointer-events:none;
+  z-index:1;
+}
+.order-mini-card{
+  width:27px;
+  height:39px;
+  border-radius:5px;
+  display:grid;
+  place-items:center;
+  box-shadow:0 3px 8px rgba(0,0,0,.28);
+  font-size:17px;
+  font-weight:1000;
+  line-height:1;
+  letter-spacing:-.04em;
+}
+.order-mini-card.black{
+  background:linear-gradient(145deg,#242424,#070707);
+  color:#fff;
+  border:1px solid #929292;
+}
+.order-mini-card.white{
+  background:linear-gradient(145deg,#fff,#e8e5dc);
+  color:#101010;
+  border:1px solid #d7d2c8;
+}
+.order-mini-card span{
+  transform:translateY(-1px);
+}
+
+@media(max-width:760px){
+  .order-sample{gap:3px}
+  .order-mini-card{
+    width:22px;
+    height:32px;
+    border-radius:4px;
+    font-size:14px;
+  }
+}
+
+@media(max-width:500px){
+  .order-sample{
+    left:47%;
+    gap:2px;
+  }
+  .order-mini-card{
+    width:19px;
+    height:29px;
+    font-size:12px;
+  }
+  .brand-mark{display:none}
+}
+
+@media(max-width:390px){
+  .order-sample{left:43%}
+  .order-mini-card{
+    width:17px;
+    height:26px;
+    font-size:11px;
+  }
+}
+
+
+/* ===== v0.9 SERVER-SYNCHRONIZED GAME SEQUENCE ===== */
+.sequence-cutin{
+  position:fixed;inset:0;z-index:88;pointer-events:none;display:grid;place-items:center;
+  opacity:0;background:rgba(0,0,0,.08);transition:opacity .16s ease;
+}
+.sequence-cutin.show{opacity:1}
+.sequence-pop{
+  min-width:min(430px,calc(100% - 30px));padding:22px 30px;border-radius:20px;text-align:center;
+  background:rgba(8,18,13,.96);border:2px solid rgba(255,216,78,.88);
+  box-shadow:0 24px 75px rgba(0,0,0,.58),0 0 0 6px rgba(255,255,255,.04);
+  transform:scale(.72);animation:sequencePopIn .24s cubic-bezier(.2,.9,.3,1.25) forwards;
+}
+.sequence-pop b{display:block;font-size:42px;line-height:1.05;font-weight:1000;letter-spacing:.02em}
+.sequence-pop small{display:block;margin-bottom:7px;font-size:9px;font-weight:1000;letter-spacing:.18em;color:#9cac9f}
+.attack-pop b{color:#ffd84e;text-shadow:0 0 24px rgba(255,216,78,.32)}
+.stay-pop{border-color:#6ebcff}.stay-pop b{color:#8dcbff;text-shadow:0 0 22px rgba(95,178,255,.32)}
+.turn-pop{border-color:#b8ff3e}.turn-pop b{font-size:30px;color:#fff}.turn-pop small{color:#b8ff3e}
+.sequence-card{animation:sequencePopIn .24s cubic-bezier(.2,.9,.3,1.25) forwards}
+@keyframes sequencePopIn{from{transform:scale(.72);opacity:0}to{transform:scale(1);opacity:1}}
+.algo-card.stay-focus{
+  z-index:32!important;transform:translateY(-12px) scale(1.11)!important;
+  box-shadow:0 0 0 4px #6ebcff,0 0 34px rgba(82,176,255,.88),0 18px 38px rgba(0,0,0,.48)!important;
+  animation:stayCardPulse .55s ease-in-out infinite alternate;
+}
+.algo-card.stay-focus::before{
+  content:"STAY";position:absolute;left:50%;top:-25px;transform:translateX(-50%);
+  padding:4px 8px;border-radius:999px;background:#378ed0;color:#fff;font-size:8px;font-weight:1000;letter-spacing:.10em;z-index:42;
+}
+@keyframes stayCardPulse{from{transform:translateY(-9px) scale(1.07)}to{transform:translateY(-14px) scale(1.12)}}
+@media(max-width:760px){
+ .sequence-pop{min-width:min(340px,calc(100% - 18px));padding:16px 17px;border-radius:15px}
+ .sequence-pop b{font-size:31px}.turn-pop b{font-size:22px}.sequence-pop small{font-size:7px}
+ .algo-card.stay-focus::before{top:-18px;padding:3px 5px;font-size:5px}
+}

@@ -8,7 +8,7 @@ const sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();
 localStorage.setItem(sessionKey,sessionId);
 
 let socket=null,currentRoom=null,roomView=null,gameView=null;
-let selectedTarget=null,logs=[],resultShownFor=null,reconnectTimer=null,intentionalClose=false,lastAttackFxId=null,attackFxTimer=null,attackFxResultTimer=null;
+let selectedTarget=null,logs=[],resultShownFor=null,reconnectTimer=null,intentionalClose=false,lastPresentationKey=null;
 
 const els={
  titleScreen:$("titleScreen"),roomScreen:$("roomScreen"),gameScreen:$("gameScreen"),nameInput:$("nameInput"),roomGrid:$("roomGrid"),serverState:$("serverState"),
@@ -144,6 +144,8 @@ function renderLobby(me){
 function renderGame(me){
  if(selectedTarget){const h=gameView.hands?.[selectedTarget.owner]||[];const c=h.find(x=>x.id===selectedTarget.cardId);if(!c||c.revealed)selectedTarget=null}
  const meIdx=roomView.players.findIndex(p=>p.id===sessionId),pair=gameView.mode==="pair";
+ const board=document.querySelector(".board");
+ if(board)board.classList.toggle("four-player-layout",roomView.players.length===4);
  els.gameRoomLabel.textContent=`ROOM ${roomView.room}`;els.modeChip.textContent=MODE_LABEL[gameView.mode]||gameView.mode;
  els.deckCount.textContent=gameView.deckCount;els.deckLabel.textContent=pair?"NO DECK":"DRAW";
  els.selfName.textContent=me.name;els.selfTeam.classList.toggle("hidden",!pair);if(pair){els.selfTeam.textContent=`TEAM ${teamOf(meIdx)}`;els.selfTeam.className=`team-badge ${teamOf(meIdx)}`}
@@ -153,7 +155,7 @@ function renderGame(me){
  const active=gameView.turn,activeP=roomView.players[active],myTurn=active===meIdx;
  els.turnText.textContent=gameView.status==="ended"?"ラウンド終了":`${activeP?.name||"PLAYER"} のターン`;document.querySelector(".turn-dot").style.background=myTurn?"var(--accent)":"var(--blue)";
  renderAction(meIdx);renderLog();
- requestAnimationFrame(()=>playAttackEvent(meIdx));
+ requestAnimationFrame(()=>renderPresentation(meIdx));
  if(gameView.status==="ended")showResultIfNeeded(meIdx);
 }
 function renderOthers(meIdx){
@@ -201,6 +203,7 @@ function renderAction(meIdx){
  if(gameView.tossReveal){els.tossReveal.innerHTML=`味方からのTOSS <b>${gameView.tossReveal.color==="black"?"黒":"白"} ${gameView.tossReveal.num}</b>`;els.tossReveal.classList.remove("hidden")}
  if(gameView.status==="ended"){els.actionTitle.textContent="ROUND END";els.actionHelp.textContent="盤面を見ることができます。";return}
  const active=gameView.turn,activeP=roomView.players[active],myTurn=active===meIdx;
+ if(gameView.presentation){els.actionTitle.textContent="演出中";els.actionHelp.textContent="演出が終わると進行します。";selectedTarget=null;return}
  if(gameView.mode==="pair"&&gameView.phase==="toss"){
   if(gameView.toss?.from===meIdx){els.actionTitle.textContent="TOSS";els.actionHelp.textContent=`味方 ${activeP.name} に見せる自分の伏せカードを1枚選択してください。`;return}
   if(myTurn){els.actionTitle.textContent="味方のTOSS待ち";els.actionHelp.textContent="味方が見せるカードを選んでいます。不要なら省略できます。";els.skipTossBtn.classList.remove("hidden");return}
@@ -236,70 +239,42 @@ function showResultIfNeeded(meIdx){
 }
 function renderLog(){els.logList.innerHTML=logs.map(x=>`<div class="log-entry"><div class="log-time">${esc(x.time)}</div><div class="log-text">${esc(x.text)}</div></div>`).join("")}
 
-function playAttackEvent(meIdx){
- const fx=gameView?.attackEvent;
- if(!fx||!fx.id||fx.id===lastAttackFxId)return;
- lastAttackFxId=fx.id;
-
- clearTimeout(attackFxTimer);
- clearTimeout(attackFxResultTimer);
- document.querySelectorAll(".algo-card.attack-focus,.algo-card.attack-hit,.algo-card.attack-miss").forEach(x=>x.classList.remove("attack-focus","attack-hit","attack-miss"));
+function renderPresentation(meIdx){
+ const p=gameView?.presentation;
+ document.querySelectorAll(".algo-card.attack-focus,.algo-card.attack-hit,.algo-card.attack-miss,.algo-card.stay-focus").forEach(x=>x.classList.remove("attack-focus","attack-hit","attack-miss","stay-focus"));
  document.querySelectorAll(".player-panel.under-attack").forEach(x=>x.classList.remove("under-attack"));
- document.querySelectorAll(".attack-cutin").forEach(x=>x.remove());
-
- const attacker=roomView.players[fx.attacker];
- const victim=roomView.players[fx.targetOwner];
- const target=document.querySelector(`.algo-card[data-owner="${fx.targetOwner}"][data-id="${CSS.escape(fx.targetId)}"]`);
- if(target){
-  target.classList.add("attack-focus");
-  const panel=target.closest(".player-panel");
-  if(panel)panel.classList.add("under-attack");
+ if(!p){document.querySelectorAll(".sequence-cutin").forEach(x=>x.remove());lastPresentationKey=null;return}
+ const key=`${p.id}:${p.kind}`;
+ const targetKinds=new Set(["attack_target","attack_declare","attack_result"]);
+ if(targetKinds.has(p.kind)){
+  const target=document.querySelector(`.algo-card[data-owner="${p.targetOwner}"][data-id="${CSS.escape(p.targetId)}"]`);
+  if(target){target.classList.add("attack-focus");if(p.kind==="attack_result")target.classList.add(p.result==="hit"?"attack-hit":"attack-miss");const panel=target.closest(".player-panel");if(panel)panel.classList.add("under-attack")}
  }
-
- const victimIsMe=fx.targetOwner===meIdx;
- const cutin=document.createElement("div");
- cutin.className="attack-cutin";
- cutin.innerHTML=`
-  <div class="attack-cutin-card">
-   <div class="attack-kicker">${victimIsMe?"あなたのカードが狙われています":"ATTACK"}</div>
-   <div class="attack-route">
-    <strong>${esc(attacker?.name||"PLAYER")}</strong>
-    <span>→</span>
-    <strong class="${victimIsMe?"victim-me":""}">${esc(victim?.name||"PLAYER")}</strong>
-   </div>
-   <div class="attack-target-line">
-    左から <b>${Number(fx.targetIndex)+1}</b> 枚目 ・ ${fx.targetColor==="black"?"黒":"白"}カード
-   </div>
-   <div class="attack-declare">
-    <span>宣言</span>
-    <b>${fx.number}</b>
-   </div>
-   <div class="attack-result">判定中</div>
-  </div>`;
- document.body.appendChild(cutin);
-
- requestAnimationFrame(()=>cutin.classList.add("show"));
-
- attackFxResultTimer=setTimeout(()=>{
-  const result=cutin.querySelector(".attack-result");
-  if(!result)return;
-  const hit=fx.result==="hit";
-  result.textContent=hit?"正解！":"不正解";
-  result.classList.add(hit?"hit":"miss","reveal");
-  if(target)target.classList.add(hit?"attack-hit":"attack-miss");
- },2000);
-
- attackFxTimer=setTimeout(()=>{
-  cutin.classList.add("hide");
-  if(target)target.classList.remove("attack-focus","attack-hit","attack-miss");
-  const panel=target?.closest(".player-panel");
-  if(panel)panel.classList.remove("under-attack");
-  setTimeout(()=>cutin.remove(),260);
- },4000);
+ if(p.kind==="stay"&&p.cardId){
+  const card=document.querySelector(`.algo-card[data-owner="${p.player}"][data-id="${CSS.escape(p.cardId)}"]`);if(card)card.classList.add("stay-focus");
+ }
+ let existing=document.querySelector(`.sequence-cutin[data-key="${CSS.escape(key)}"]`);
+ if(existing)return;
+ document.querySelectorAll(".sequence-cutin").forEach(x=>x.remove());
+ const box=document.createElement("div");box.className="sequence-cutin";box.dataset.key=key;
+ if(p.kind==="attack_pop"){
+  box.innerHTML=`<div class="sequence-pop attack-pop"><b>アタック！</b></div>`;
+ }else if(p.kind==="attack_target"){
+  return;
+ }else if(p.kind==="attack_declare"||p.kind==="attack_result"){
+  const attacker=roomView.players[p.attacker],victim=roomView.players[p.targetOwner],victimIsMe=p.targetOwner===meIdx;
+  box.innerHTML=`<div class="attack-cutin-card sequence-card"><div class="attack-kicker">${victimIsMe?"あなたのカードが狙われています":"ATTACK"}</div><div class="attack-route"><strong>${esc(attacker?.name||"PLAYER")}</strong><span>→</span><strong class="${victimIsMe?"victim-me":""}">${esc(victim?.name||"PLAYER")}</strong></div><div class="attack-target-line">左から <b>${Number(p.targetIndex)+1}</b> 枚目 ・ ${p.targetColor==="black"?"黒":"白"}カード</div><div class="attack-declare"><span>宣言</span><b>${p.number}</b></div>${p.kind==="attack_result"?`<div class="attack-result reveal ${p.result==="hit"?"hit":"miss"}">${p.result==="hit"?"正解！":"不正解"}</div>`:""}</div>`;
+ }else if(p.kind==="stay"){
+  box.innerHTML=`<div class="sequence-pop stay-pop"><b>ステイ！</b></div>`;
+ }else if(p.kind==="turn"){
+  const who=roomView.players[p.player];box.innerHTML=`<div class="sequence-pop turn-pop"><small>NEXT TURN</small><b>${esc(who?.name||"PLAYER")}のターン</b></div>`;
+ }else return;
+ document.body.appendChild(box);requestAnimationFrame(()=>box.classList.add("show"));lastPresentationKey=key;
 }
 
 function toast(text,good){const t=document.createElement("div");t.className="toast"+(good===true?" good":good===false?" bad":"");t.textContent=text;els.toastLayer.appendChild(t);setTimeout(()=>t.remove(),1100)}
 function leaveRoom(){if(!currentRoom)return;send({type:"leave"});returnToTitle(true)}
-function returnToTitle(closeSocket=true){intentionalClose=true;lastAttackFxId=null;clearTimeout(attackFxTimer);clearTimeout(attackFxResultTimer);if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
+function returnToTitle(closeSocket=true){intentionalClose=true;lastPresentationKey=null;document.querySelectorAll(".sequence-cutin").forEach(x=>x.remove());
+ const board=document.querySelector(".board");if(board)board.classList.remove("four-player-layout");if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
 refreshRooms();
 })();
