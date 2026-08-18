@@ -95,8 +95,10 @@ function renderState(){
  setScreen("game");renderGame(me);scheduleCpuTick();
 }
 function renderLobby(me){
- els.roomTitle.textContent=`ROOM ${roomView.room}`;els.hostLabel.textContent=roomView.hostId===sessionId?"HOST":"GUEST";
- const isHost=roomView.hostId===sessionId,req=roomView.requiredPlayers||2;
+ const fallbackHostId=roomView.hostId||roomView.players.find(p=>!p.isCpu&&p.connected)?.id||roomView.players.find(p=>!p.isCpu)?.id||null;
+ const isHost=roomView.youIsHost===true||fallbackHostId===sessionId;
+ els.roomTitle.textContent=`ROOM ${roomView.room}`;els.hostLabel.textContent=isHost?"HOST":"GUEST";
+ const req=roomView.requiredPlayers||2;
  els.modeButtons.querySelectorAll("button").forEach(b=>{b.classList.toggle("active",b.dataset.mode===roomView.mode);b.disabled=!isHost});
  els.addCpuBtn.disabled=!isHost||roomView.players.length>=req;els.removeCpuBtn.disabled=!isHost||!roomView.players.some(p=>p.isCpu);
  els.waitingPlayers.innerHTML=Array.from({length:req},(_,i)=>{

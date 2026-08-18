@@ -1,4 +1,4 @@
-ALGO ONLINE v0.3 - GitHub Pages files
+ALGO ONLINE v0.3.1 - GitHub Pages files
 
 Upload these files to the GitHub Pages repository:
 - index.html
@@ -8,3 +8,5 @@ Upload these files to the GitHub Pages repository:
 
 config.js server:
 https://algo-online.naitoryo7110.workers.dev
+
+Fix: lobby host permission and CPU/mode controls.
