@@ -374,3 +374,154 @@ button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
   .algo-card .num{font-size:clamp(16px,5vw,28px)}
   .algo-card.turn-draw::after{font-size:5px;bottom:-11px}
 }
+
+
+/* ===== v0.7 ATTACK TARGET / DECLARATION CUT-IN ===== */
+.algo-card.attack-focus{
+  z-index:30!important;
+  transform:translateY(-10px) scale(1.10)!important;
+  filter:brightness(1.08);
+  box-shadow:0 0 0 4px #ffd24d,0 0 0 9px rgba(255,67,55,.42),0 18px 38px rgba(0,0,0,.48)!important;
+  animation:attackTargetPulse .5s ease-in-out infinite alternate;
+}
+.algo-card.attack-focus::before{
+  content:"TARGET";
+  position:absolute;
+  left:50%;
+  top:-25px;
+  transform:translateX(-50%);
+  padding:4px 7px;
+  border-radius:999px;
+  background:#ff4338;
+  color:#fff;
+  font-size:8px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.10em;
+  box-shadow:0 4px 12px rgba(0,0,0,.34);
+  z-index:40;
+}
+.algo-card.attack-hit{
+  box-shadow:0 0 0 4px #b8ff3e,0 0 30px rgba(184,255,62,.85),0 18px 38px rgba(0,0,0,.45)!important;
+}
+.algo-card.attack-miss{
+  box-shadow:0 0 0 4px #ff4d58,0 0 30px rgba(255,77,88,.78),0 18px 38px rgba(0,0,0,.45)!important;
+}
+.player-panel.under-attack{
+  border-color:#ffd24d!important;
+  box-shadow:inset 0 0 0 2px rgba(255,210,77,.28),0 0 28px rgba(255,64,53,.24)!important;
+  animation:underAttackPanel .55s ease-in-out infinite alternate;
+}
+@keyframes attackTargetPulse{
+  from{transform:translateY(-8px) scale(1.07)}
+  to{transform:translateY(-13px) scale(1.12)}
+}
+@keyframes underAttackPanel{
+  from{filter:brightness(1)}
+  to{filter:brightness(1.13)}
+}
+
+.attack-cutin{
+  position:fixed;
+  inset:0;
+  z-index:86;
+  pointer-events:none;
+  display:grid;
+  place-items:center;
+  background:rgba(0,0,0,0);
+  opacity:0;
+  transition:opacity .14s ease,background .18s ease;
+}
+.attack-cutin.show{
+  opacity:1;
+  background:rgba(2,18,10,.18);
+}
+.attack-cutin.hide{opacity:0}
+.attack-cutin-card{
+  width:min(500px,calc(100% - 28px));
+  border:2px solid rgba(255,214,83,.92);
+  border-radius:19px;
+  padding:15px 22px 13px;
+  text-align:center;
+  color:#fff;
+  background:linear-gradient(180deg,rgba(22,28,25,.97),rgba(8,15,12,.98));
+  box-shadow:0 0 0 5px rgba(255,62,51,.14),0 24px 70px rgba(0,0,0,.58);
+  transform:scale(.76) translateY(18px);
+  transition:transform .22s cubic-bezier(.2,.9,.3,1.25);
+}
+.attack-cutin.show .attack-cutin-card{transform:scale(1) translateY(0)}
+.attack-kicker{
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:.18em;
+  color:#ffd84e;
+  margin-bottom:5px;
+}
+.attack-route{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  font-size:17px;
+  line-height:1.1;
+}
+.attack-route strong{font-size:20px}
+.attack-route span{color:#ff5a4e;font-size:22px;font-weight:1000}
+.attack-route .victim-me{color:#ff6b72;text-shadow:0 0 14px rgba(255,63,76,.34)}
+.attack-target-line{
+  margin-top:7px;
+  color:#d7e1da;
+  font-size:11px;
+  font-weight:800;
+}
+.attack-target-line b{font-size:15px;color:#fff}
+.attack-declare{
+  margin:8px auto 2px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:11px;
+}
+.attack-declare span{
+  font-size:12px;
+  font-weight:950;
+  color:#ffd84e;
+  letter-spacing:.12em;
+}
+.attack-declare b{
+  min-width:72px;
+  font-size:52px;
+  line-height:.95;
+  color:#fff;
+  text-shadow:0 0 18px rgba(255,255,255,.17);
+}
+.attack-result{
+  min-height:25px;
+  margin-top:5px;
+  font-size:12px;
+  font-weight:1000;
+  letter-spacing:.08em;
+  color:#8f9a91;
+  transform:scale(.82);
+  opacity:.65;
+  transition:.18s ease;
+}
+.attack-result.reveal{opacity:1;transform:scale(1);font-size:21px}
+.attack-result.hit{color:#b8ff3e;text-shadow:0 0 16px rgba(184,255,62,.35)}
+.attack-result.miss{color:#ff6b73;text-shadow:0 0 16px rgba(255,70,80,.32)}
+
+@media(max-width:760px){
+  .algo-card.attack-focus::before{top:-18px;padding:3px 5px;font-size:5px}
+  .attack-cutin-card{width:min(390px,calc(100% - 18px));border-radius:14px;padding:11px 12px 9px}
+  .attack-kicker{font-size:7px}
+  .attack-route{gap:7px;font-size:13px}
+  .attack-route strong{font-size:15px}
+  .attack-route span{font-size:18px}
+  .attack-target-line{font-size:8px;margin-top:5px}
+  .attack-target-line b{font-size:11px}
+  .attack-declare{margin-top:6px;gap:8px}
+  .attack-declare span{font-size:9px}
+  .attack-declare b{font-size:39px;min-width:55px}
+  .attack-result{font-size:9px;min-height:20px}
+  .attack-result.reveal{font-size:16px}
+}

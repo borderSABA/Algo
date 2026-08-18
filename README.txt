@@ -1,14 +1,12 @@
-ALGO ONLINE v0.6 - GitHub Pages
+ALGO ONLINE v0.7 - GitHub Pages
 
 Upload every file in this folder.
 
-Main changes:
-- Green felt board.
-- Drawn card moves into the hand immediately and is raised during the turn.
-- Larger attack-number controls.
-- No inference memo.
-- OPEN label is above the number.
-- Client no longer drives CPU turns.
+v0.7:
+- Synchronized target-card highlight.
+- Large attack declaration cut-in.
+- Declared number shown to every player.
+- HIT / MISS presentation.
 
 Server:
 https://algo-online.naitoryo7110.workers.dev

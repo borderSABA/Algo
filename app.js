@@ -8,7 +8,7 @@ const sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();
 localStorage.setItem(sessionKey,sessionId);
 
 let socket=null,currentRoom=null,roomView=null,gameView=null;
-let selectedTarget=null,logs=[],resultShownFor=null,reconnectTimer=null,intentionalClose=false;
+let selectedTarget=null,logs=[],resultShownFor=null,reconnectTimer=null,intentionalClose=false,lastAttackFxId=null,attackFxTimer=null,attackFxResultTimer=null;
 
 const els={
  titleScreen:$("titleScreen"),roomScreen:$("roomScreen"),gameScreen:$("gameScreen"),nameInput:$("nameInput"),roomGrid:$("roomGrid"),serverState:$("serverState"),
@@ -153,6 +153,7 @@ function renderGame(me){
  const active=gameView.turn,activeP=roomView.players[active],myTurn=active===meIdx;
  els.turnText.textContent=gameView.status==="ended"?"ラウンド終了":`${activeP?.name||"PLAYER"} のターン`;document.querySelector(".turn-dot").style.background=myTurn?"var(--accent)":"var(--blue)";
  renderAction(meIdx);renderLog();
+ requestAnimationFrame(()=>playAttackEvent(meIdx));
  if(gameView.status==="ended")showResultIfNeeded(meIdx);
 }
 function renderOthers(meIdx){
@@ -234,8 +235,71 @@ function showResultIfNeeded(meIdx){
  els.resultTitle.textContent=win?"YOU WIN":"YOU LOSE";els.resultTitle.style.color=win?"var(--accent)":"#ff7f88";els.resultText.textContent=text;setTimeout(()=>els.resultOverlay.classList.remove("hidden"),350)
 }
 function renderLog(){els.logList.innerHTML=logs.map(x=>`<div class="log-entry"><div class="log-time">${esc(x.time)}</div><div class="log-text">${esc(x.text)}</div></div>`).join("")}
+
+function playAttackEvent(meIdx){
+ const fx=gameView?.attackEvent;
+ if(!fx||!fx.id||fx.id===lastAttackFxId)return;
+ lastAttackFxId=fx.id;
+
+ clearTimeout(attackFxTimer);
+ clearTimeout(attackFxResultTimer);
+ document.querySelectorAll(".algo-card.attack-focus,.algo-card.attack-hit,.algo-card.attack-miss").forEach(x=>x.classList.remove("attack-focus","attack-hit","attack-miss"));
+ document.querySelectorAll(".player-panel.under-attack").forEach(x=>x.classList.remove("under-attack"));
+ document.querySelectorAll(".attack-cutin").forEach(x=>x.remove());
+
+ const attacker=roomView.players[fx.attacker];
+ const victim=roomView.players[fx.targetOwner];
+ const target=document.querySelector(`.algo-card[data-owner="${fx.targetOwner}"][data-id="${CSS.escape(fx.targetId)}"]`);
+ if(target){
+  target.classList.add("attack-focus");
+  const panel=target.closest(".player-panel");
+  if(panel)panel.classList.add("under-attack");
+ }
+
+ const victimIsMe=fx.targetOwner===meIdx;
+ const cutin=document.createElement("div");
+ cutin.className="attack-cutin";
+ cutin.innerHTML=`
+  <div class="attack-cutin-card">
+   <div class="attack-kicker">${victimIsMe?"あなたのカードが狙われています":"ATTACK"}</div>
+   <div class="attack-route">
+    <strong>${esc(attacker?.name||"PLAYER")}</strong>
+    <span>→</span>
+    <strong class="${victimIsMe?"victim-me":""}">${esc(victim?.name||"PLAYER")}</strong>
+   </div>
+   <div class="attack-target-line">
+    左から <b>${Number(fx.targetIndex)+1}</b> 枚目 ・ ${fx.targetColor==="black"?"黒":"白"}カード
+   </div>
+   <div class="attack-declare">
+    <span>宣言</span>
+    <b>${fx.number}</b>
+   </div>
+   <div class="attack-result">判定中</div>
+  </div>`;
+ document.body.appendChild(cutin);
+
+ requestAnimationFrame(()=>cutin.classList.add("show"));
+
+ attackFxResultTimer=setTimeout(()=>{
+  const result=cutin.querySelector(".attack-result");
+  if(!result)return;
+  const hit=fx.result==="hit";
+  result.textContent=hit?"正解！":"不正解";
+  result.classList.add(hit?"hit":"miss","reveal");
+  if(target)target.classList.add(hit?"attack-hit":"attack-miss");
+ },620);
+
+ attackFxTimer=setTimeout(()=>{
+  cutin.classList.add("hide");
+  if(target)target.classList.remove("attack-focus","attack-hit","attack-miss");
+  const panel=target?.closest(".player-panel");
+  if(panel)panel.classList.remove("under-attack");
+  setTimeout(()=>cutin.remove(),260);
+ },1750);
+}
+
 function toast(text,good){const t=document.createElement("div");t.className="toast"+(good===true?" good":good===false?" bad":"");t.textContent=text;els.toastLayer.appendChild(t);setTimeout(()=>t.remove(),1100)}
 function leaveRoom(){if(!currentRoom)return;send({type:"leave"});returnToTitle(true)}
-function returnToTitle(closeSocket=true){intentionalClose=true;if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
+function returnToTitle(closeSocket=true){intentionalClose=true;lastAttackFxId=null;clearTimeout(attackFxTimer);clearTimeout(attackFxResultTimer);if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
 refreshRooms();
 })();
