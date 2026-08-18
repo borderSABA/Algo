@@ -3,12 +3,12 @@
 const $ = id => document.getElementById(id);
 const SERVER_URL = String(window.ALGO_CONFIG?.SERVER_URL || "").replace(/\/+$/, "");
 const WS_URL = SERVER_URL.replace(/^http/i,"ws");
-const sessionKey="algo_online_session_v03", nameKey="algo_online_name_v03";
+const sessionKey="algo_online_session_v06", nameKey="algo_online_name_v06";
 const sessionId=localStorage.getItem(sessionKey)||crypto.randomUUID();
 localStorage.setItem(sessionKey,sessionId);
 
 let socket=null,currentRoom=null,roomView=null,gameView=null;
-let selectedTarget=null,logs=[],memos={},resultShownFor=null,reconnectTimer=null,intentionalClose=false,cpuTimer=null;
+let selectedTarget=null,logs=[],resultShownFor=null,reconnectTimer=null,intentionalClose=false;
 
 const els={
  titleScreen:$("titleScreen"),roomScreen:$("roomScreen"),gameScreen:$("gameScreen"),nameInput:$("nameInput"),roomGrid:$("roomGrid"),serverState:$("serverState"),
@@ -17,8 +17,8 @@ const els={
  gameRoomLabel:$("gameRoomLabel"),modeChip:$("modeChip"),turnText:$("turnText"),deckCount:$("deckCount"),deckLabel:$("deckLabel"),
  othersGrid:$("othersGrid"),selfName:$("selfName"),selfTeam:$("selfTeam"),selfCards:$("selfCards"),selfOpen:$("selfOpen"),selfTotal:$("selfTotal"),
  actionTitle:$("actionTitle"),actionHelp:$("actionHelp"),guessPanel:$("guessPanel"),targetLabel:$("targetLabel"),numberPad:$("numberPad"),
- decisionPanel:$("decisionPanel"),drawCard:$("drawCard"),drawLabel:$("drawLabel"),tossReveal:$("tossReveal"),skipTossBtn:$("skipTossBtn"),
- memoNumbers:$("memoNumbers"),memoTargetText:$("memoTargetText"),clearMemoBtn:$("clearMemoBtn"),toastLayer:$("toastLayer"),
+ decisionPanel:$("decisionPanel"),tossReveal:$("tossReveal"),skipTossBtn:$("skipTossBtn"),
+ toastLayer:$("toastLayer"),
  logList:$("logList"),logDrawer:$("logDrawer"),drawerShade:$("drawerShade"),resultOverlay:$("resultOverlay"),resultTitle:$("resultTitle"),resultText:$("resultText")
 };
 
@@ -42,7 +42,6 @@ $("stayBtn").addEventListener("click",()=>send({type:"stay"}));
 els.skipTossBtn.addEventListener("click",()=>send({type:"skip_toss"}));
 $("viewBoardBtn").addEventListener("click",()=>els.resultOverlay.classList.add("hidden"));
 $("rematchBtn").addEventListener("click",()=>{els.resultOverlay.classList.add("hidden");send({type:"start_game"})});
-els.clearMemoBtn.addEventListener("click",()=>{if(!selectedTarget)return;memos[selectedTarget.cardId]=new Set();renderMemo();renderNumberPad()});
 
 function closeLog(){els.logDrawer.classList.remove("open");els.drawerShade.classList.add("hidden")}
 function setScreen(name){
@@ -93,7 +92,7 @@ function renderState(){
  if(!roomView)return;
  const me=roomView.players.find(p=>p.id===sessionId);if(!me){returnToTitle(false);return}
  if(!gameView||gameView.status==="waiting"){setScreen("room");renderLobby(me);return}
- setScreen("game");renderGame(me);scheduleCpuTick();
+ setScreen("game");renderGame(me);
 }
 function renderLobby(me){
  els.roomTitle.textContent=`ROOM ${roomView.room}`;
@@ -143,16 +142,17 @@ function renderLobby(me){
  renderLog();
 }
 function renderGame(me){
+ if(selectedTarget){const h=gameView.hands?.[selectedTarget.owner]||[];const c=h.find(x=>x.id===selectedTarget.cardId);if(!c||c.revealed)selectedTarget=null}
  const meIdx=roomView.players.findIndex(p=>p.id===sessionId),pair=gameView.mode==="pair";
  els.gameRoomLabel.textContent=`ROOM ${roomView.room}`;els.modeChip.textContent=MODE_LABEL[gameView.mode]||gameView.mode;
- els.deckCount.textContent=gameView.deckCount;els.deckLabel.textContent=pair?"NO DECK":"DRAW";els.drawLabel.textContent=pair?"攻撃に使うカード":"今回引いたカード";
+ els.deckCount.textContent=gameView.deckCount;els.deckLabel.textContent=pair?"NO DECK":"DRAW";
  els.selfName.textContent=me.name;els.selfTeam.classList.toggle("hidden",!pair);if(pair){els.selfTeam.textContent=`TEAM ${teamOf(meIdx)}`;els.selfTeam.className=`team-badge ${teamOf(meIdx)}`}
  const selfHand=gameView.hands[meIdx]||[];els.selfOpen.textContent=selfHand.filter(c=>c.revealed).length;els.selfTotal.textContent=selfHand.length;
  renderSelfCards(meIdx,selfHand);
  renderOthers(meIdx);
  const active=gameView.turn,activeP=roomView.players[active],myTurn=active===meIdx;
  els.turnText.textContent=gameView.status==="ended"?"ラウンド終了":`${activeP?.name||"PLAYER"} のターン`;document.querySelector(".turn-dot").style.background=myTurn?"var(--accent)":"var(--blue)";
- renderDraw(meIdx);renderAction(meIdx);renderMemo();renderLog();
+ renderAction(meIdx);renderLog();
  if(gameView.status==="ended")showResultIfNeeded(meIdx);
 }
 function renderOthers(meIdx){
@@ -171,9 +171,12 @@ function renderOthers(meIdx){
 function renderSelfCards(meIdx,hand){els.selfCards.innerHTML="";hand.forEach(c=>els.selfCards.appendChild(makeCard(c,meIdx,true,meIdx)))}
 function makeCard(c,ownerIdx,isSelf,meIdx){
  const d=document.createElement("div"),show=c.num!==null&&c.num!==undefined;
- d.className=`algo-card ${c.color} ${show?"":"hidden-card"} ${c.revealed?"revealed":""}`;
+ const isTurnDraw=gameView.turnDrawCardId===c.id;
+ d.className=`algo-card ${c.color} ${show?"":"hidden-card"} ${c.revealed?"revealed":""} ${isTurnDraw?"turn-draw":""}`;
  d.dataset.id=c.id;d.dataset.owner=ownerIdx;
- d.innerHTML=`${show?`<span class="num">${c.num}</span>`:`<span class="qmark">?</span>`}${c.revealed?`<span class="open-overlay">OPEN</span>`:""}${gameView.attackCardId===c.id?`<span class="attack-badge">ATTACK</span>`:""}${gameView.toss?.cardId===c.id?`<span class="toss-badge">TOSS</span>`:""}`;
+ const openLabel=c.revealed?`<span class="open-label ${isSelf?"self-open":""}">OPEN</span>`:`<span class="open-label spacer">OPEN</span>`;
+ const face=show?`<span class="num">${c.num}</span>`:`<span class="qmark">?</span>`;
+ d.innerHTML=`<div class="card-face">${openLabel}${face}</div>${gameView.attackCardId===c.id?`<span class="attack-badge">ATTACK</span>`:""}${gameView.toss?.cardId===c.id?`<span class="toss-badge">TOSS</span>`:""}`;
  let clickable=false,action=null;
  if(gameView.status==="playing"){
   if(gameView.mode==="pair"&&gameView.phase==="toss"&&gameView.toss?.from===meIdx&&isSelf&&!c.revealed){clickable=true;action=()=>send({type:"toss_card",cardId:c.id})}
@@ -191,14 +194,6 @@ function canAttackOwner(meIdx,ownerIdx){
 function selectTarget(owner,cardId){
  selectedTarget={owner,cardId};const p=roomView.players[owner],hand=gameView.hands[owner],idx=hand.findIndex(c=>c.id===cardId),c=hand[idx];
  els.targetLabel.textContent=`${p.name} の左から${idx+1}枚目（${c.color==="black"?"黒":"白"}）`;renderGame(roomView.players.find(p=>p.id===sessionId));
-}
-function renderDraw(meIdx){
- els.drawCard.className="draw-card";
- if(gameView.mode==="pair"){
-  const hand=gameView.hands[meIdx]||[],a=hand.find(c=>c.id===gameView.attackCardId);
-  if(gameView.turn===meIdx&&a){els.drawCard.classList.add(a.color);els.drawCard.textContent=a.num}else{els.drawCard.classList.add("empty");els.drawCard.textContent="—"};return;
- }
- if(gameView.turn===meIdx&&gameView.drawn){els.drawCard.classList.add(gameView.drawn.color);els.drawCard.textContent=gameView.drawn.num}else{els.drawCard.classList.add("empty");els.drawCard.textContent="—"}
 }
 function renderAction(meIdx){
  els.guessPanel.classList.add("hidden");els.decisionPanel.classList.add("hidden");els.tossReveal.classList.add("hidden");els.skipTossBtn.classList.add("hidden");
@@ -219,27 +214,17 @@ function renderAction(meIdx){
  if(gameView.phase==="decision"){els.actionTitle.textContent="アタック成功";els.actionHelp.textContent="続行するか、ステイして手番を終了します。";els.decisionPanel.classList.remove("hidden");selectedTarget=null}
 }
 function renderNumberPad(){
- els.numberPad.innerHTML="";const memo=selectedTarget?(memos[selectedTarget.cardId]||new Set()):null;
- for(let n=0;n<=11;n++){const b=document.createElement("button");b.className="num-btn"+(memo?.has(n)?" memo-out":"");b.textContent=n;b.disabled=!selectedTarget;b.addEventListener("click",()=>{if(selectedTarget)send({type:"guess",targetOwner:selectedTarget.owner,targetId:selectedTarget.cardId,number:n})});els.numberPad.appendChild(b)}
- if(selectedTarget){const p=roomView.players[selectedTarget.owner],h=gameView.hands[selectedTarget.owner],i=h.findIndex(c=>c.id===selectedTarget.cardId),c=h[i];els.targetLabel.textContent=`${p.name} の左から${i+1}枚目（${c.color==="black"?"黒":"白"}）`}else els.targetLabel.textContent="伏せカードを選択";
-}
-function renderMemo(){
- els.memoNumbers.innerHTML="";const memo=selectedTarget?(memos[selectedTarget.cardId]||(memos[selectedTarget.cardId]=new Set())):null;
- els.memoTargetText.textContent=selectedTarget?"選択中カードの候補除外":"相手カードを選択すると使えます";
- for(let n=0;n<=11;n++){const b=document.createElement("button");b.className="memo-btn"+(memo?.has(n)?" off":"");b.textContent=n;b.disabled=!selectedTarget;b.addEventListener("click",()=>{if(!selectedTarget)return;memo.has(n)?memo.delete(n):memo.add(n);renderMemo();renderNumberPad()});els.memoNumbers.appendChild(b)}
-}
-function cpuNeedsAction(){
- if(!roomView||!gameView||gameView.status!=="playing")return false;
- const activeCpu=roomView.players[gameView.turn]?.isCpu;
- const tossCpu=gameView.mode==="pair"&&gameView.phase==="toss"&&roomView.players[gameView.toss?.from]?.isCpu;
- return !!(activeCpu||tossCpu);
-}
-function scheduleCpuTick(){
- clearTimeout(cpuTimer);
- if(!cpuNeedsAction())return;
- cpuTimer=setTimeout(()=>{
-  if(cpuNeedsAction())send({type:"cpu_tick",gameId:gameView.gameId,turn:gameView.turn,phase:gameView.phase});
- },650);
+ els.numberPad.innerHTML="";
+ for(let n=0;n<=11;n++){
+  const b=document.createElement("button");
+  b.className="num-btn";b.textContent=n;b.disabled=!selectedTarget;
+  b.addEventListener("click",()=>{if(selectedTarget)send({type:"guess",targetOwner:selectedTarget.owner,targetId:selectedTarget.cardId,number:n})});
+  els.numberPad.appendChild(b);
+ }
+ if(selectedTarget){
+  const p=roomView.players[selectedTarget.owner],h=gameView.hands[selectedTarget.owner],i=h.findIndex(c=>c.id===selectedTarget.cardId),c=h[i];
+  els.targetLabel.textContent=`${p.name} の左から${i+1}枚目（${c.color==="black"?"黒":"白"}）`;
+ }else els.targetLabel.textContent="伏せカードを選択";
 }
 function showResultIfNeeded(meIdx){
  if(resultShownFor===gameView.gameId)return;resultShownFor=gameView.gameId;
@@ -251,12 +236,6 @@ function showResultIfNeeded(meIdx){
 function renderLog(){els.logList.innerHTML=logs.map(x=>`<div class="log-entry"><div class="log-time">${esc(x.time)}</div><div class="log-text">${esc(x.text)}</div></div>`).join("")}
 function toast(text,good){const t=document.createElement("div");t.className="toast"+(good===true?" good":good===false?" bad":"");t.textContent=text;els.toastLayer.appendChild(t);setTimeout(()=>t.remove(),1100)}
 function leaveRoom(){if(!currentRoom)return;send({type:"leave"});returnToTitle(true)}
-function returnToTitle(closeSocket=true){intentionalClose=true;clearTimeout(cpuTimer);if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
-setInterval(()=>{
- if(socket?.readyState!==WebSocket.OPEN)return;
- if(!cpuNeedsAction())return;
- send({type:"cpu_tick",gameId:gameView.gameId,turn:gameView.turn,phase:gameView.phase});
-},1400);
-
+function returnToTitle(closeSocket=true){intentionalClose=true;if(closeSocket&&socket){try{socket.close()}catch{}}socket=null;currentRoom=null;roomView=null;gameView=null;selectedTarget=null;resultShownFor=null;els.resultOverlay.classList.add("hidden");setScreen("title");setTimeout(refreshRooms,100)}
 refreshRooms();
 })();

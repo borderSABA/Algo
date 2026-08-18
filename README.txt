@@ -1,9 +1,14 @@
-ALGO ONLINE v0.5.1
+ALGO ONLINE v0.6 - GitHub Pages
 
-CPU turn progression fix.
+Upload every file in this folder.
 
-Upload ALL files in this folder to GitHub Pages.
-Also redeploy Cloudflare_Workers because the server CPU dedupe logic changed.
+Main changes:
+- Green felt board.
+- Drawn card moves into the hand immediately and is raised during the turn.
+- Larger attack-number controls.
+- No inference memo.
+- OPEN label is above the number.
+- Client no longer drives CPU turns.
 
 Server:
 https://algo-online.naitoryo7110.workers.dev

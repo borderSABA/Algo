@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1015">
-  <title>ALGO ONLINE v0.5.1</title>
-  <link rel="stylesheet" href="./style.css?v=0.5.1">
+  <title>ALGO ONLINE v0.6</title>
+  <link rel="stylesheet" href="./style.css?v=0.6">
 </head>
 <body>
 <div id="app">
@@ -14,7 +14,7 @@
       <div class="brand-mark">A</div>
       <div class="brand-copy">
         <div class="brand-title">ALGO <span>ONLINE</span></div>
-        <div class="brand-sub">LOGIC NUMBER GAME / v0.5.1</div>
+        <div class="brand-sub">LOGIC NUMBER GAME / v0.6</div>
       </div>
     </div>
     <div class="top-actions">
@@ -40,7 +40,7 @@
         <button id="refreshRoomsBtn" class="small-btn">更新</button>
       </div>
       <div id="roomGrid" class="room-grid"></div>
-      <p class="rooms-note">固定4部屋 / 入室後に対戦形式とCPUを設定できます。</p>
+      <p class="rooms-note">固定4部屋 / 参加人数で2〜4人戦を自動判定。4人時はペアプレーも選択できます。</p>
     </section>
   </main>
 
@@ -115,10 +115,6 @@
           </div>
         </div>
 
-        <div class="draw-block">
-          <span id="drawLabel">今回引いたカード</span>
-          <div id="drawCard" class="draw-card empty">—</div>
-        </div>
       </div>
 
       <div class="player-panel self-panel">
@@ -133,14 +129,6 @@
         <div id="selfCards" class="card-row"></div>
       </div>
 
-      <div class="memo-panel">
-        <div class="memo-head">
-          <strong>推理メモ</strong>
-          <span id="memoTargetText">相手カードを選択すると使えます</span>
-          <button id="clearMemoBtn" class="small-btn">解除</button>
-        </div>
-        <div id="memoNumbers" class="memo-numbers"></div>
-      </div>
     </section>
   </main>
 </div>
@@ -160,7 +148,7 @@
       <article><b>4人戦</b><p>2枚ずつ配ります。全カードがOPENになったプレイヤーは脱落し、残った1人が勝利です。</p></article>
       <article><b>ペア戦</b><p>4人で2対2。各6枚、山札なし。手番前に味方が自分の伏せカード1枚を選び「トス」して数字を味方だけに見せます。</p></article>
       <article><b>ペア戦の攻撃</b><p>自分の伏せカード1枚を攻撃用に選択。失敗するとそのカードがOPEN。敵2人を先に全OPENにしたチームが勝利です。</p></article>
-      <article><b>CPU</b><p>人間とCPUを混在できます。ロビーのホストがCPUを追加・削除します。</p></article>
+      <article><b>CPU</b><p>人間とCPUを混在できます。ロビーの空席からCPUを追加し、CPU席から削除できます。</p></article>
       <article><b>この版</b><p>1ラウンド勝負です。公式のポイントチップと複数ラウンド総合得点は未実装です。</p></article>
     </div>
   </div>
@@ -187,7 +175,7 @@
   </div>
 </div>
 
-<script src="./config.js?v=0.5.1"></script>
-<script src="./app.js?v=0.5.1"></script>
+<script src="./config.js?v=0.6"></script>
+<script src="./app.js?v=0.6"></script>
 </body>
 </html>
