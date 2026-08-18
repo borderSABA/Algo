@@ -287,7 +287,7 @@ function playAttackEvent(meIdx){
   result.textContent=hit?"正解！":"不正解";
   result.classList.add(hit?"hit":"miss","reveal");
   if(target)target.classList.add(hit?"attack-hit":"attack-miss");
- },620);
+ },2000);
 
  attackFxTimer=setTimeout(()=>{
   cutin.classList.add("hide");
@@ -295,7 +295,7 @@ function playAttackEvent(meIdx){
   const panel=target?.closest(".player-panel");
   if(panel)panel.classList.remove("under-attack");
   setTimeout(()=>cutin.remove(),260);
- },1750);
+ },4000);
 }
 
 function toast(text,good){const t=document.createElement("div");t.className="toast"+(good===true?" good":good===false?" bad":"");t.textContent=text;els.toastLayer.appendChild(t);setTimeout(()=>t.remove(),1100)}

@@ -1,12 +1,11 @@
-ALGO ONLINE v0.7 - GitHub Pages
+ALGO ONLINE v0.7.1 - GitHub Pages
+
+Attack presentation:
+- Declaration: 2 seconds
+- HIT / MISS result: 2 seconds
+- Total: about 4 seconds
 
 Upload every file in this folder.
-
-v0.7:
-- Synchronized target-card highlight.
-- Large attack declaration cut-in.
-- Declared number shown to every player.
-- HIT / MISS presentation.
 
 Server:
 https://algo-online.naitoryo7110.workers.dev
