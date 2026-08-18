@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1015">
-  <title>ALGO ONLINE v0.4</title>
-  <link rel="stylesheet" href="./style.css">
+  <title>ALGO ONLINE v0.5</title>
+  <link rel="stylesheet" href="./style.css?v=0.5">
 </head>
 <body>
 <div id="app">
@@ -14,7 +14,7 @@
       <div class="brand-mark">A</div>
       <div class="brand-copy">
         <div class="brand-title">ALGO <span>ONLINE</span></div>
-        <div class="brand-sub">LOGIC NUMBER GAME / v0.4</div>
+        <div class="brand-sub">LOGIC NUMBER GAME / v0.5</div>
       </div>
     </div>
     <div class="top-actions">
@@ -45,57 +45,38 @@
   </main>
 
   <main id="roomScreen" class="screen room-screen hidden">
-    <section class="waiting-card">
+    <section class="waiting-card simple-lobby">
       <div class="waiting-top">
-        <div><div class="eyebrow">MATCH ROOM</div><h2 id="roomTitle">ROOM 1</h2></div>
-        <div class="shared-setting-badge">全員が設定可能</div>
+        <div>
+          <div class="eyebrow">MATCH ROOM</div>
+          <h2 id="roomTitle">ROOM 1</h2>
+        </div>
+        <div id="autoModeBadge" class="auto-mode-badge">1人参加</div>
       </div>
 
-      <section class="game-setting-panel">
-        <div class="setting-title-row">
-          <div>
-            <div class="setting-kicker">GAME MODE</div>
-            <strong>対戦形式</strong>
-          </div>
-          <span>ゲーム開始前ならいつでも変更できます</span>
-        </div>
-        <div id="modeButtons" class="mode-cards">
-          <button class="mode-card" data-mode="2">
-            <span class="mode-icon">2</span>
-            <span class="mode-copy"><b>2人戦</b><small>1 vs 1 ・ 初期4枚</small></span>
-            <span class="mode-check">✓</span>
-          </button>
-          <button class="mode-card" data-mode="3">
-            <span class="mode-icon">3</span>
-            <span class="mode-copy"><b>3人戦</b><small>個人戦 ・ 初期3枚</small></span>
-            <span class="mode-check">✓</span>
-          </button>
-          <button class="mode-card" data-mode="4">
-            <span class="mode-icon">4</span>
-            <span class="mode-copy"><b>4人戦</b><small>個人戦 ・ 初期2枚</small></span>
-            <span class="mode-check">✓</span>
-          </button>
-          <button class="mode-card" data-mode="pair">
-            <span class="mode-icon pair-icon">2v2</span>
-            <span class="mode-copy"><b>ペア戦</b><small>TEAM A vs TEAM B ・ 各6枚</small></span>
-            <span class="mode-check">✓</span>
-          </button>
-        </div>
-      </section>
+      <div class="lobby-section-title">
+        <strong>参加プレイヤー</strong>
+        <span>最大4人 / 空席にはCPUを追加できます</span>
+      </div>
+      <div id="waitingPlayers" class="waiting-players"></div>
 
-      <section class="seat-setting-panel">
-        <div class="setting-title-row">
-          <div>
-            <div class="setting-kicker">PLAYERS</div>
-            <strong>参加プレイヤー</strong>
-          </div>
-          <span>空席にはCPUを直接追加できます</span>
-        </div>
-        <div id="waitingPlayers" class="waiting-players"></div>
-      </section>
+      <div class="lobby-bottom-controls">
+        <button id="pairToggleBtn" class="pair-toggle-btn" disabled>
+          <span class="pair-toggle-icon">2v2</span>
+          <span class="pair-toggle-copy">
+            <b>ペアプレー</b>
+            <small id="pairToggleState">4人時に選択できます</small>
+          </span>
+          <span class="pair-switch"><i></i></span>
+        </button>
 
-      <div id="waitingText" class="waiting-text">参加者を待っています。</div>
-      <button id="readyBtn" class="primary-btn lobby-ready-btn">READY</button>
+        <button id="startGameBtn" class="start-game-btn" disabled>
+          <span>ゲーム開始</span>
+          <small id="startModeText">2人以上で開始できます</small>
+        </button>
+      </div>
+
+      <div id="waitingText" class="waiting-text">あと1人参加すると開始できます。</div>
     </section>
   </main>
 
@@ -200,13 +181,13 @@
     <h1 id="resultTitle">YOU WIN</h1>
     <p id="resultText"></p>
     <div class="result-actions">
-      <button id="rematchBtn" class="primary-btn">再戦READY</button>
+      <button id="rematchBtn" class="primary-btn">もう一度遊ぶ</button>
       <button id="viewBoardBtn" class="secondary-btn">盤面を見る</button>
     </div>
   </div>
 </div>
 
-<script src="./config.js"></script>
-<script src="./app.js"></script>
+<script src="./config.js?v=0.5"></script>
+<script src="./app.js?v=0.5"></script>
 </body>
 </html>

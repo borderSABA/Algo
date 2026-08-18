@@ -12,8 +12,8 @@ let selectedTarget=null,logs=[],memos={},resultShownFor=null,reconnectTimer=null
 
 const els={
  titleScreen:$("titleScreen"),roomScreen:$("roomScreen"),gameScreen:$("gameScreen"),nameInput:$("nameInput"),roomGrid:$("roomGrid"),serverState:$("serverState"),
- roomTitle:$("roomTitle"),waitingPlayers:$("waitingPlayers"),waitingText:$("waitingText"),readyBtn:$("readyBtn"),
- modeButtons:$("modeButtons"),
+ roomTitle:$("roomTitle"),waitingPlayers:$("waitingPlayers"),waitingText:$("waitingText"),autoModeBadge:$("autoModeBadge"),pairToggleBtn:$("pairToggleBtn"),pairToggleState:$("pairToggleState"),startGameBtn:$("startGameBtn"),startModeText:$("startModeText"),
+
  gameRoomLabel:$("gameRoomLabel"),modeChip:$("modeChip"),turnText:$("turnText"),deckCount:$("deckCount"),deckLabel:$("deckLabel"),
  othersGrid:$("othersGrid"),selfName:$("selfName"),selfTeam:$("selfTeam"),selfCards:$("selfCards"),selfOpen:$("selfOpen"),selfTotal:$("selfTotal"),
  actionTitle:$("actionTitle"),actionHelp:$("actionHelp"),guessPanel:$("guessPanel"),targetLabel:$("targetLabel"),numberPad:$("numberPad"),
@@ -35,13 +35,13 @@ $("rulesModal").addEventListener("click",e=>{if(e.target.id==="rulesModal")$("ru
 $("logBtn").addEventListener("click",()=>{els.logDrawer.classList.add("open");els.drawerShade.classList.remove("hidden")});
 $("closeLogBtn").addEventListener("click",closeLog);els.drawerShade.addEventListener("click",closeLog);
 $("leaveBtn").addEventListener("click",leaveRoom);
-els.readyBtn.addEventListener("click",()=>send({type:"ready"}));
-els.modeButtons.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>send({type:"set_mode",mode:b.dataset.mode})));
+els.pairToggleBtn.addEventListener("click",()=>send({type:"toggle_pair"}));
+els.startGameBtn.addEventListener("click",()=>send({type:"start_game"}));
 $("continueBtn").addEventListener("click",()=>send({type:"continue"}));
 $("stayBtn").addEventListener("click",()=>send({type:"stay"}));
 els.skipTossBtn.addEventListener("click",()=>send({type:"skip_toss"}));
 $("viewBoardBtn").addEventListener("click",()=>els.resultOverlay.classList.add("hidden"));
-$("rematchBtn").addEventListener("click",()=>{els.resultOverlay.classList.add("hidden");send({type:"ready"})});
+$("rematchBtn").addEventListener("click",()=>{els.resultOverlay.classList.add("hidden");send({type:"start_game"})});
 els.clearMemoBtn.addEventListener("click",()=>{if(!selectedTarget)return;memos[selectedTarget.cardId]=new Set();renderMemo();renderNumberPad()});
 
 function closeLog(){els.logDrawer.classList.remove("open");els.drawerShade.classList.add("hidden")}
@@ -60,12 +60,15 @@ function setServerOnline(ok){els.serverState.classList.toggle("online",ok);els.s
 function renderRooms(rooms){
  els.roomGrid.innerHTML="";
  for(const room of rooms){
-  const req=room.requiredPlayers||2,occ=room.players?.length||0,full=occ>=req;
-  const card=document.createElement("div");card.className="room-card"+(full?" full":"");
+  const occ=room.players?.length||0,full=occ>=4,playing=room.status==="playing";
+  const mode=room.pairMode&&occ===4?"ペア戦":occ>=2?`${occ}人戦`:"待機中";
+  const card=document.createElement("div");
+  card.className="room-card"+(full||playing?" full":"");
   const names=(room.players||[]).map(p=>`${esc(p.name)}${p.isCpu?" [CPU]":p.connected?"":" (OFFLINE)"}`).join("<br>")||"空室";
-  card.innerHTML=`<div class="room-top"><div><div class="room-name">ROOM ${esc(room.room)}</div><div class="room-mode">${MODE_LABEL[room.mode]||"2人戦"}</div></div><div class="room-status">${occ}/${req}</div></div><div class="seat-list">${names}</div><div class="room-actions"><button class="enter-btn" ${full?"disabled":""}>入室</button><button class="reset-btn">初期化</button></div>`;
+  card.innerHTML=`<div class="room-top"><div><div class="room-name">ROOM ${esc(room.room)}</div><div class="room-mode">${playing?"対戦中":mode}</div></div><div class="room-status">${occ}/4</div></div><div class="seat-list">${names}</div><div class="room-actions"><button class="enter-btn" ${(full||playing)?"disabled":""}>部屋に参加</button><button class="reset-btn">初期化</button></div>`;
   card.querySelector(".enter-btn").addEventListener("click",()=>joinRoom(room.room));
-  card.querySelector(".reset-btn").addEventListener("click",()=>resetRoom(room.room));els.roomGrid.appendChild(card);
+  card.querySelector(".reset-btn").addEventListener("click",()=>resetRoom(room.room));
+  els.roomGrid.appendChild(card);
  }
 }
 async function resetRoom(room){
@@ -94,19 +97,20 @@ function renderState(){
 }
 function renderLobby(me){
  els.roomTitle.textContent=`ROOM ${roomView.room}`;
- const req=roomView.requiredPlayers||2;
- els.modeButtons.querySelectorAll("button").forEach(b=>{
-  b.classList.toggle("active",b.dataset.mode===roomView.mode);
-  b.disabled=false;
- });
+ const count=roomView.players.length;
+ const pairOn=!!roomView.pairMode;
+ const autoMode=pairOn&&count===4?"ペア戦":count>=2?`${count}人戦`:`${count}人参加`;
+ els.autoModeBadge.textContent=autoMode;
+
  els.waitingPlayers.innerHTML="";
- for(let i=0;i<req;i++){
-  const p=roomView.players[i],team=roomView.mode==="pair"?teamOf(i):null;
+ for(let i=0;i<4;i++){
+  const p=roomView.players[i];
+  const team=pairOn&&count===4?teamOf(i):null;
   const seat=document.createElement("div");
-  seat.className=`waiting-seat ${p?.ready||p?.isCpu?"ready":""} ${p?.isCpu?"cpu":""} ${p?"":"empty"}`;
+  seat.className=`waiting-seat ${p?.isCpu?"cpu":""} ${p?"":"empty"}`;
   const teamText=team?` / <span class="team${team}">TEAM ${team}</span>`:"";
   if(p){
-   seat.innerHTML=`<div><div class="seat-no">PLAYER ${i+1}${teamText}</div><strong>${esc(p.name)}</strong><div class="seat-meta">${p.isCpu?"CPU":p.ready?"READY":"WAIT"}${!p.isCpu&&!p.connected?" / OFFLINE":""}</div></div>`;
+   seat.innerHTML=`<div><div class="seat-no">PLAYER ${i+1}${teamText}</div><strong>${esc(p.name)}</strong><div class="seat-meta">${p.isCpu?"CPU":p.connected?"ONLINE":"OFFLINE"}</div></div>`;
    if(p.isCpu){
     const rm=document.createElement("button");
     rm.className="seat-action-btn remove";
@@ -115,19 +119,27 @@ function renderLobby(me){
     seat.appendChild(rm);
    }
   }else{
-   seat.innerHTML=`<div><div class="seat-no">PLAYER ${i+1}${teamText}</div><strong>空席</strong><div class="seat-meta">HUMAN / CPU</div></div>`;
+   seat.innerHTML=`<div><div class="seat-no">PLAYER ${i+1}</div><strong>空席</strong><div class="seat-meta">参加待ち</div></div>`;
    const add=document.createElement("button");
    add.className="seat-action-btn add";
-   add.textContent="＋ CPUを追加";
+   add.textContent="＋ CPU追加";
    add.addEventListener("click",()=>send({type:"add_cpu"}));
    seat.appendChild(add);
   }
   els.waitingPlayers.appendChild(seat);
  }
- const full=roomView.players.length===req;
- els.waitingText.textContent=full?"全員が揃いました。人間プレイヤー全員がREADYになると開始します。":`あと ${req-roomView.players.length} 席です。空席からCPUを追加できます。`;
- els.readyBtn.disabled=!full;
- els.readyBtn.textContent=me.ready?"READY 解除":"READY";
+
+ els.pairToggleBtn.disabled=count!==4;
+ els.pairToggleBtn.classList.toggle("on",pairOn&&count===4);
+ els.pairToggleState.textContent=count!==4?"4人時に選択できます":pairOn?"ON / 2対2で開始":"OFF / 個人戦で開始";
+
+ const canStart=count>=2&&count<=4;
+ els.startGameBtn.disabled=!canStart;
+ els.startModeText.textContent=!canStart?"2人以上で開始できます":pairOn&&count===4?"ペア戦として開始":`${count}人戦として開始`;
+
+ if(count<2) els.waitingText.textContent="あと1人参加するか、CPUを追加すると開始できます。";
+ else if(count<4) els.waitingText.textContent=`現在${count}人。開始すると自動的に${count}人戦になります。`;
+ else els.waitingText.textContent=pairOn?"4人・ペアプレーON：2対2で開始します。":"4人・ペアプレーOFF：4人個人戦で開始します。";
  renderLog();
 }
 function renderGame(me){
